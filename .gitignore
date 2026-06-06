@@ -1,0 +1,43 @@
+# --- Secrets (CRITICAL: a leaked key in a security repo is an instant credibility hit) ---
+.env
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+
+# --- Database (may contain response data) ---
+*.db
+*.db-wal
+*.db-shm
+
+# --- Results (regenerable; large JSONL files shouldn't be in git by default) ---
+results/*.jsonl
+results/*.md
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Extraction artifacts ---
+redteam-harness-extracted/
+redteam-harness.zip
+
+# --- Node (from any tooling) ---
+node_modules/
+package-lock.json
