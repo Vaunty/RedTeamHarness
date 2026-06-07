@@ -5,6 +5,42 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 
 ---
 
+## 2026-06-06 — Phase 1.75 (True Multi-Turn) & Creator Probes
+
+### [FEATURE] Multi-Turn Conversational Attacks
+- Upgraded `runner.py` and `Target` interface to maintain conversation history.
+- `Attack` dataclass now supports `turns: list[str]`. Legacy single-turn datasets are automatically normalized.
+- Upgraded LLM Judge (`judge.py`) to process full conversation transcripts instead of isolated responses.
+- Added Crescendo and Compliance Training multi-turn attacks to `probes.jsonl`.
+
+### [FEATURE] Advanced Creator Probes
+- Added **Emoji Smuggling** and **Markdown Link Smuggling** probes (inspired by NetworkChuck).
+- Added **WTF CTF Wrapper** probe (inspired by The Cyber Mentor).
+- Added **Glitch Token / Encoding bypass** probe (inspired by LiveOverflow).
+
+### [NOTE] Documentation & Git
+- Updated README with accurate MITRE mappings, multi-turn architecture, and creator citations.
+- Prepping transition to Phase 2 (Web Dashboard).
+
+---
+
+## 2026-06-06 — Phase 1.5 (Probes & 8-Layer Defenses)
+
+### [FEATURE] Probe Library Expansion
+- Expanded `probes.jsonl` from 6 to 28 core probes across 6 categories.
+- Added test coverage for: System Prompt Extraction, Privilege Escalation, Harmful Content.
+
+### [FEATURE] 8-Layer Defense System
+- Completely overhauled `defenses.py`.
+- Added structural pattern matching, input sanitization, and system prompt leakage detection.
+- Added **Harmful Content Policy layer** to detect educational/roleplay bypasses.
+- ASR (Attack Success Rate) reduced from 32.1% to 10.7% on Llama 3.2 3B.
+
+### [NOTE] General Polish
+- Standardized documentation style across all project files to ensure a clean, professional tone.
+
+---
+
 ## 2026-06-06 — Initial Build
 
 ### [SETUP] Project initialized
