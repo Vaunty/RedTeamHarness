@@ -95,6 +95,8 @@ def _parse_json(raw: str) -> dict:
 def _neutralize(system_prompt: str, response: str):
     """Strip model identity so the judge can't be biased by which model produced the response. 
     Model name is never passed; the speaker is relabeled generically."""
+    if "ATTACKER: " in response:
+        return system_prompt, f"CONVERSATION TRANSCRIPT:\n{response}"
     return system_prompt, f"TARGET RESPONSE:\n{response}"
 
 

@@ -41,15 +41,34 @@ def run(target_models, attacks_path="data/probes.jsonl", defense=None, judge_run
     with out.open("w", encoding="utf-8") as f:
         for tgt in targets:
             for atk in attacks:
-                system, user = atk.system, atk.user
-                if defense:
-                    system, user = defense.apply(system, user)
-                response = tgt.generate(system, user)
-                if defense:
-                    response = defense.filter_output(response)
+                system = atk.system
+                messages = []
+                transcript = ""
 
-                hit = deterministic_hit(atk.success_if, response)   # cheap cross-check
-                v = judge.judge(atk.technique, atk.system, response)  # the LLM-as-judge verdict
+                # 1) Harden system prompt once if defended
+                if defense:
+                    system, _ = defense.apply(system, "")
+
+                # 2) Execute turns
+                for i, turn in enumerate(atk.turns):
+                    if defense:
+                        _, turn = defense.apply(system, turn)
+                    
+                    messages.append({"role": "user", "content": turn})
+                    transcript += f"ATTACKER: {turn}\n\n"
+                    
+                    response = tgt.generate(system, messages)
+                    
+                    if defense:
+                        response = defense.filter_output(response)
+                        
+                    transcript += f"TARGET: {response}\n\n"
+                    
+                    if i < len(atk.turns) - 1:
+                        messages.append({"role": "assistant", "content": response})
+
+                hit = deterministic_hit(atk.success_if, response)   # cheap cross-check on final response
+                v = judge.judge(atk.technique, system, transcript.strip())  # the LLM-as-judge verdict on full transcript
 
                 rec = {
                     "model": tgt.name, "attack": atk.id, "category": atk.category,
@@ -57,7 +76,7 @@ def run(target_models, attacks_path="data/probes.jsonl", defense=None, judge_run
                     "technique": atk.technique,
                     "verdict": v.verdict, "severity": v.severity,
                     "deterministic_hit": hit, "votes": v.votes,
-                    "reason": v.reason, "response": response,
+                    "reason": v.reason, "response": transcript.strip(),
                 }
 
                 # Write to both JSONL and database

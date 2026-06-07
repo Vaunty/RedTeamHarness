@@ -13,14 +13,13 @@ class Target:
         self.model = model          # the provider's model id
         self.client = OpenAI(base_url=base_url, api_key=api_key)
 
-    def generate(self, system, user, temperature=0.0, max_tokens=512):
+    def generate(self, system, messages, temperature=0.0, max_tokens=512):
+        # messages is a list of dicts: [{"role": "user", "content": "..."}, ...]
         # temperature=0 -> as deterministic as possible so re-runs are comparable.
+        payload = [{"role": "system", "content": system}] + messages
         resp = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            messages=payload,
             temperature=temperature,
             max_tokens=max_tokens,
         )
