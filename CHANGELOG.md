@@ -8,7 +8,7 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 ## 2026-06-06 — Initial Build
 
 ### [SETUP] Project initialized
-- Deployed source files from redteam-harness.zip to project root
+- Initial project structure and core modules
 - Core modules: targets.py, attacks.py, judge.py, runner.py, metrics.py, defenses.py, report.py
 - Attack probes: 6 benign proxy probes in attacks/probes.jsonl
 - Environment: Python 3.14.5, Ollama (local), OpenAI API (judge)
@@ -45,8 +45,7 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 - .gitignore: Comprehensive Python project patterns
 
 ### [DECISION] Own API key for judge
-- Using personal OpenAI API key (not CRA key) since this is an independent project
-- May lead to own research contributions
+- Using personal OpenAI API key since this is an independent project
 
 ### [DECISION] Benign proxies as ground truth
 - Deterministic checks (contains BANANA-42, etc.) serve as ground truth for judge calibration

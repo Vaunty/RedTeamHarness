@@ -1,4 +1,4 @@
-"""report.py - write a Markdown results report (tables sell results).
+"""report.py - generate a Markdown results report with summary tables.
 
 Supports loading from JSONL (original) or SQLite database (new).
 New: comparison_report() for baseline vs defended delta analysis.

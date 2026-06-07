@@ -39,9 +39,7 @@ def breakdown(records, key):
 
 
 def judge_vs_deterministic(records):
-    """Calibration aid on benign proxies: how often does the judge's 'complied'
-    agree with the deterministic ground-truth check? This is your built-in
-    judge-validation step (the analog of calibrating GPT-4 against human labels in CRA)."""
+    """Calibration check: how often does the judge's 'complied' agree with the deterministic ground-truth? Measures judge reliability against known outcomes."""
     rel = [r for r in records if r.get("deterministic_hit") is not None]
     if not rel:
         return None

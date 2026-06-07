@@ -67,7 +67,7 @@ The harness evaluates the effectiveness of a simple defensive layer (`defenses.p
 2. **Input Filtering:** Using regular expressions to block common injection markers (e.g., "ignore previous instructions").
 3. **Output Redaction:** Scrubbing known sensitive tokens (e.g., "BANANA-42") from the model's output before it reaches the user.
 
-**Honest Limitations:**
+**Known Limitations:**
 - Keyword-based input filters are brittle. Paraphrased attacks easily evade them, and they are prone to false positives.
 - Output redaction only works if the exact sensitive string is known in advance.
 

@@ -28,7 +28,7 @@ class Target:
 
 
 def ollama_target(model):
-    """A local model served by Ollama on your laptop/desktop. api_key is ignored by Ollama
+    """Local model served by Ollama. api_key is ignored by Ollama
     but the OpenAI client requires a non-empty string."""
     return Target(model, model, base_url="http://localhost:11434/v1", api_key="ollama")
 

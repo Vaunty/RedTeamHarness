@@ -1,7 +1,7 @@
 # LLM Red-Team Harness — Application Guide
 
 > **A complete, step-by-step guide to installing, configuring, and running the harness.**
-> For the design rationale and interview walkthrough, see [GUIDE.md](GUIDE.md).
+> For the design rationale, see the project documentation.
 > For architectural decisions, see [DECISIONS.md](DECISIONS.md).
 
 ---
@@ -56,12 +56,10 @@ You need an API for the judge (which does benign grading work — no adversarial
 
 Open **PowerShell** or **Windows Terminal** and run the following commands.
 
-### 3.1 Clone or Extract the Project
+### 3.1 Set Up the Project
 
-If you received `redteam-harness.zip`:
 ```powershell
-# Extract to your desired location (already done if you're reading this file)
-Expand-Archive -Path redteam-harness.zip -DestinationPath C:\Users\matth\OneDrive\Desktop\RedTeamHarness
+cd C:\Users\matth\OneDrive\Desktop\RedTeamHarness
 ```
 
 ### 3.2 Create a Virtual Environment
@@ -155,7 +153,7 @@ Get-Content .env | ForEach-Object {
 The `.env.example` file contains three pre-configured options:
 
 ```ini
-# --- Option A: OpenAI (recommended, same as DebateCoach setup) ---
+# --- Option A: OpenAI (recommended) ---
 JUDGE_MODEL=gpt-4o
 OPENAI_API_KEY=sk-replace-me
 
@@ -436,7 +434,7 @@ Calibration = (agreements) / (probes with deterministic checks)
 - **0.833** — Judge disagrees on 1 out of 6 probes. Investigate the disagreement.
 - **< 0.700** — Judge may be miscalibrated. Check your judge model and rubric.
 
-**Why it matters:** This is your proof that the LLM judge is trustworthy — the analog of calibrating GPT-4 against human labels in academic work.
+**Why it matters:** Demonstrates the LLM judge is trustworthy — equivalent to calibrating against human labels in academic evaluation work.
 
 ### 7.3 Verdict Categories
 
@@ -500,7 +498,7 @@ print(f"Defended by category: {breakdown(d, 'category')}")
 | ASR unchanged | Defenses are not addressing the attack vectors tested |
 | Specific categories drop, others don't | Defenses are targeted — e.g., output redaction catches `data_leak` but not `jailbreak` |
 
-> **Honest limitation:** Keyword-based input filters are brittle. Paraphrased attacks evade them, and you'll get false positives on benign inputs. Frame defenses as "a first layer," not "a solution." This honesty is good interview material.
+> **Known limitation:** Keyword-based input filters are brittle. Paraphrased attacks evade them, and they produce false positives on benign inputs. These defenses are a first layer, not a complete solution.
 
 ---
 
@@ -867,8 +865,8 @@ ollama pull gemma2:2b
 | `database.py` | SQLite persistence layer (runs, results, metrics) |
 | `.env.example` | Template for API keys and judge configuration |
 | `requirements.txt` | Python dependencies |
-| `GUIDE.md` | Build/design/interview walkthrough |
-| `DECISIONS.md` | Design-decision crib sheet |
+| `GUIDE.md` | Build and design walkthrough |
+| `DECISIONS.md` | Design-decision log |
 | `APPLICATION_GUIDE.md` | This file |
 | `THREAT_MODEL.md` | Professional threat model document |
 | `CHANGELOG.md` | Project change log |

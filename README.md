@@ -50,8 +50,8 @@ from metrics import load, asr; print('ASR before', asr(load(b)), 'after', asr(lo
 - `metrics.py` - ASR, refusal rate, breakdowns, judge calibration
 - `defenses.py` - hardened prompt + input/output filters
 - `report.py` - Markdown report
-- `GUIDE.md` - the full build-and-understand guide
-- `DECISIONS.md` - design-decision crib sheet (interview prep)
+- `docs/APPLICATION_GUIDE.md` - the full build-and-understand guide
+- `DECISIONS.md` - design-decision log
 
-See `GUIDE.md` for the detailed walkthrough, the responsible-use rules, and how to swap the
+See `docs/APPLICATION_GUIDE.md` for the detailed walkthrough, the responsible-use rules, and how to swap the
 benign proxies for published datasets (garak / JailbreakBench / AdvBench / MMSafeAware).
