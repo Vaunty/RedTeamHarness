@@ -55,3 +55,14 @@ from metrics import load, asr; print('ASR before', asr(load(b)), 'after', asr(lo
 
 See `docs/APPLICATION_GUIDE.md` for the detailed walkthrough, the responsible-use rules, and how to swap the
 benign proxies for published datasets (garak / JailbreakBench / AdvBench / MMSafeAware).
+
+## Acknowledgments & References
+
+This project builds upon the research, methodologies, and technical insights of the following creators and projects:
+
+- **DebateCoach Project (CRA UR2PhD)**: The core LLM-as-a-judge architecture (`judge.py`), including self-consistency voting and neutralization, was ported from this research project.
+- **[NetworkChuck](https://www.youtube.com/@NetworkChuck)**: Inspired advanced payload delivery mechanisms, specifically Emoji Smuggling and Markdown Link Smuggling techniques for data exfiltration bypasses.
+- **[The Cyber Mentor (Heath Adams)](https://www.youtube.com/@TCMSecurityAcademy)**: Inspired practical CTF-style bypasses and complex "WTF" prompt wrappers.
+- **[LiveOverflow](https://www.youtube.com/@LiveOverflow)**: Deep-dive mechanistic interpretability and token-level manipulation (glitch tokens) that form the mathematical basis for bypassing attention mechanisms.
+- **[Simply Cyber (Dr. Gerald Auger)](https://www.youtube.com/@SimplyCyber)**: GRC insights that shaped the mapping of Attack Success Rates (ASR) to the **NIST AI Risk Management Framework (AI RMF)** for enterprise reporting.
+- **[3Blue1Brown (Grant Sanderson)](https://www.youtube.com/@3blue1brown)**: His visual Deep Learning series on Transformers and Attention provided the foundational mathematics for Phase 3 (The Geometry of Attacks) and the latent space embedding analysis.
