@@ -12,6 +12,7 @@ from core.geometry import (
     train_linear_probe,
     plot_2d_projection
 )
+from sklearn.metrics import accuracy_score
 
 BENIGN_PROMPTS = [
     "What is the capital of France?",

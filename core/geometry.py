@@ -118,7 +118,7 @@ def plot_2d_projection(Z, y, title="PCA Prompt Space Projection", output_path=No
     ax = plt.axes()
     ax.set_facecolor('#16161f')
     
-    plt.grid(True, color='rgba(255,255,255,0.05)', linestyle='--', zorder=0)
+    plt.grid(True, color=(1.0, 1.0, 1.0, 0.05), linestyle='--', zorder=0)
     
     benign_idx = (y == 0)
     attack_idx = (y == 1)
@@ -140,9 +140,9 @@ def plot_2d_projection(Z, y, title="PCA Prompt Space Projection", output_path=No
     
     ax.tick_params(colors='#8a8a9a', labelsize=9)
     for spine in ax.spines.values():
-        spine.set_color('rgba(255,255,255,0.1)')
+        spine.set_color((1.0, 1.0, 1.0, 0.1))
         
-    legend = plt.legend(facecolor='#1b1b22', edgecolor='rgba(255,255,255,0.1)', loc='best')
+    legend = plt.legend(facecolor='#1b1b22', edgecolor=(1.0, 1.0, 1.0, 0.1), loc='best')
     for text in legend.get_texts():
         text.set_color('#e8e8ed')
         text.set_fontsize(9)
