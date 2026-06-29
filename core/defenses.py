@@ -101,17 +101,14 @@ _ENCODING_PATTERNS = [
     r"(?:\\u[0-9a-fA-F]{4}){4,}",
 ]
 
-# Compile all structural patterns into a single detection list for efficiency.
-# Each entry is (compiled_regex, category_label).
-_STRUCTURAL_DETECTORS: list[tuple[re.Pattern, str]] = []
-for _pat in _INJECTION_MARKERS:
-    _STRUCTURAL_DETECTORS.append((re.compile(_pat, re.IGNORECASE), "injection"))
-for _pat in _ROLEPLAY_PATTERNS:
-    _STRUCTURAL_DETECTORS.append((re.compile(_pat, re.IGNORECASE), "roleplay"))
-for _pat in _AUTHORITY_PATTERNS:
-    _STRUCTURAL_DETECTORS.append((re.compile(_pat, re.IGNORECASE), "authority"))
-for _pat in _ENCODING_PATTERNS:
-    _STRUCTURAL_DETECTORS.append((re.compile(_pat, re.IGNORECASE), "encoding"))
+# Compile structural patterns into unified disjunction regexes per category for maximum execution speed.
+# Reduces pattern matching scans from O(patterns) to O(1) per category.
+_STRUCTURAL_DETECTORS: list[tuple[re.Pattern, str]] = [
+    (re.compile("|".join(_INJECTION_MARKERS), re.IGNORECASE), "injection"),
+    (re.compile("|".join(_ROLEPLAY_PATTERNS), re.IGNORECASE), "roleplay"),
+    (re.compile("|".join(_AUTHORITY_PATTERNS), re.IGNORECASE), "authority"),
+    (re.compile("|".join(_ENCODING_PATTERNS), re.IGNORECASE), "encoding"),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -474,11 +471,18 @@ class Defense:
         except ImportError:
             self.embedding_detector = None
 
+        # Phase 3: CLIP visual prompt injection detector
+        try:
+            from core.visual_detector import VisualDetector
+            self.visual_detector = VisualDetector()
+        except ImportError:
+            self.visual_detector = None
+
     # -------------------------------------------------------------------
     # INPUT LAYER
     # -------------------------------------------------------------------
-    def apply(self, system: str, user: str, image_text: str = "") -> tuple[str, str]:
-        """Process system prompt, user message, and optional image text through input defenses.
+    def apply(self, system: str, user: str, image_text: str = "", image_path: str = "") -> tuple[str, str]:
+        """Process system prompt, user message, optional image text, and image path through input defenses.
 
         Returns (hardened_system, sanitized_user).
         """
@@ -517,6 +521,12 @@ class Defense:
                 detections.append("embedding_detector_match")
             if sanitized_image_text and self.embedding_detector.is_attack(sanitized_image_text):
                 detections.append("image_embedding_detector_match")
+
+        # --- Phase 3: CLIP Visual embedding detection ---
+        if image_path and self.visual_detector:
+            is_attack, score = self.visual_detector.is_attack_image(image_path)
+            if is_attack:
+                detections.append("visual_detector_match")
 
         # --- Layer 7: Harmful content policy ---
         harmful_topics = _detect_harmful_topic(sanitized_user)
