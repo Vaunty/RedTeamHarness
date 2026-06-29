@@ -565,11 +565,13 @@ class Defense:
         out = response or ""
 
         # --- Layer 4: Token redaction (static + dynamic) ---
-        # Combine static tokens and dynamically extracted secrets for case-insensitive redaction
+        # Combine static tokens and dynamically extracted secrets for case-insensitive, fuzzy redaction
         all_secrets = set(REDACT_TOKENS) | set(self._dynamic_secrets)
         for tok in all_secrets:
             if len(tok) >= 3:
-                out = re.sub(re.escape(tok), "[REDACTED]", out, flags=re.IGNORECASE)
+                # Use fuzzy regular expression to catch obfuscations (dashes, dots, spaces, leetspeak)
+                pattern = _make_fuzzy_secret_regex(tok)
+                out = pattern.sub("[REDACTED]", out)
 
         # --- Layer 5: System prompt leakage detection ---
         if self._system_prompt and _detect_system_prompt_leakage(
@@ -599,3 +601,35 @@ class Defense:
             )
 
         return out
+
+
+def _make_fuzzy_secret_regex(secret: str) -> re.Pattern:
+    """Constructs a case-insensitive regular expression that matches the secret
+    even if it is obfuscated with spacers (dashes, dots, spaces) or common leetspeak substitutions.
+    
+    Example: 'PINEAPPLE' matches 'P-I-N-E-A-P-P-L-E', 'P1N34PPL3', etc.
+    """
+    leet_subs = {
+        'A': r'[Aa4@]',
+        'E': r'[Ee3]',
+        'I': r'[Ii1l|]',
+        'O': r'[Oo0]',
+        'S': r'[Ss5]',
+        'T': r'[Tt7]',
+        'G': r'[Gg6]',
+        'B': r'[Bb8]'
+    }
+    
+    parts = []
+    for char in secret.upper():
+        if char in leet_subs:
+            parts.append(leet_subs[char])
+        else:
+            parts.append(re.escape(char))
+            
+    # Join characters allowing optional non-alphanumeric spacer characters between them
+    pattern_str = r"[\W_]*".join(parts)
+    # Wrap in word boundary or non-alphanumeric boundary checks to avoid partial matches
+    pattern_str = r"\b" + pattern_str + r"\b"
+    
+    return re.compile(pattern_str, re.IGNORECASE)
