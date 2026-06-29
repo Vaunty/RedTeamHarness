@@ -5,6 +5,41 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 
 ---
 
+## 2026-06-29 — Phase 2 (VLM Red-Teaming & Geometry of Attacks)
+
+### [DECISION] Research Pivot — Unified Platform
+- After attending Alissa Knight's keynote at NJ SECON 2026 and reviewing the Ares co-evolutionary framework, decided to unify three threads into one integrated research platform:
+  1. The existing harness (probe orchestration, metrics, dashboard)
+  2. Geometry of Attacks (embedding-space analysis, PCA/SVD, linear attack detector)
+  3. VLM red-teaming (multimodal jailbreak research using structural coercion)
+- The research question: does structural coercion (rigid formatting, role-play scaffolding) bypass VLM safety alignment more effectively than overtly toxic prompts?
+
+### [DECISION] Model Selection — Cut InternVL2, Added Moondream
+- **Cut InternVL2-2B**: Not natively available in Ollama. Would have required a separate LMDeploy/Transformers pipeline, fragmenting the tooling.
+- **Added Moondream 2 (1.8B)**: Runs natively via `ollama run moondream`. Fast on CPU (~8-15 tok/sec). Gives us a small-vs-large model comparison (1.8B vs 7B) to test whether model scale affects vulnerability to structural coercion.
+- **Primary VLM target remains LLaVA 1.5 7B** via `ollama run llava:7b-v1.5`.
+
+### [FEATURE] Geometry of Attacks Engine (Planned)
+- `core/embed.py` — text → 384-dim vector embeddings via all-MiniLM-L6-v2
+- `core/geometry.py` — hand-rolled PCA via SVD, cosine similarity matrix, difference-of-means attack direction, logistic regression cross-check
+- `core/detector.py` — embedding-based attack detector that plugs into defenses.py, replacing the brittle keyword filter
+- Centerpiece visualization: PCA scatter plot showing attack prompts migrating across embedding space as intensity escalates L1 → L5
+
+### [FEATURE] VLM Structural Coercion Pipeline (Planned)
+- `core/vlm_targets.py` — multimodal (image+text) interface for Ollama vision models
+- `core/intensity.py` — Ghost-100 5-Level Prompt Intensity Framework implementation
+- Datasets: Ghost-100 (hallucination benchmark), MMSafeAware subset (multimodal safety), AdvBench + JailbreakBench (labeled prompts for the embedding probe)
+
+### [CHANGE] Documentation
+- Updated README with Phase 2 research direction, new file listings, VLM model setup
+- Updated THREAT_MODEL to v2.0: expanded attack surface to multimodal vectors, structural coercion, multi-model orchestration, and embedding-based defense
+- Added Alissa Knight / Assail and Ghost-100 paper to Acknowledgments
+
+### [NOTE] Architecture Insight
+- Alissa Knight's Ares framework focuses on API/web/mobile penetration testing. This project applies the co-evolutionary philosophy to a frontier Ares doesn't cover: vision-language model safety. The Geometry of Attacks math engine serves as both the visualization layer and the defense target in the co-evolutionary loop.
+
+---
+
 ## 2026-06-06 — Phase 1.75 (True Multi-Turn) & Creator Probes
 
 ### [FEATURE] Multi-Turn Conversational Attacks
@@ -88,9 +123,14 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 - Published datasets (garak, JailbreakBench) planned as future extension for breadth
 - Calibration metric: judge_vs_deterministic agreement rate
 
-### [TODO] Future enhancements
-- [ ] Load published probe datasets (garak, JailbreakBench, HarmBench)
-- [ ] Multi-turn attack chains
+### [TODO] Status
+- [x] Load published probe datasets (garak, JailbreakBench, HarmBench)
+- [x] Multi-turn attack chains
 - [ ] Async runner for faster batch execution
-- [ ] Web dashboard for results visualization
+- [x] Web dashboard for results visualization
 - [ ] Integration with NVIDIA garak / Microsoft PyRIT
+- [ ] Geometry of Attacks: embed.py, geometry.py, detector.py
+- [ ] VLM pipeline: vlm_targets.py, intensity.py
+- [ ] Ghost-100 intensity sweep (LLaVA + Moondream)
+- [ ] Embedding detector vs. keyword filter head-to-head
+- [ ] PCA migration visualization (centerpiece figure)

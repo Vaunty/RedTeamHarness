@@ -1,8 +1,8 @@
 # Threat Model — LLM Red-Team Harness
 
 **Author:** Matthew Ngoy  
-**Date:** June 6, 2026  
-**Version:** 1.0  
+**Date:** June 29, 2026  
+**Version:** 2.0  
 
 ---
 
@@ -45,6 +45,9 @@ The LLM Red-Team Harness is an automated security-testing pipeline designed to p
 ## 5. Attack Surface
 
 - **Text Input:** The primary attack surface is the natural language input provided to the model (the user prompt), designed to manipulate the context established by the system prompt.
+- **Visual Input (Phase 2):** For VLMs, the attack surface expands to image-text pairs — malicious intent can be embedded in visual content to bypass text-only safety filters.
+- **Structural Coercion:** Rigid formatting constraints, role-play scaffolding, and escalating directive pressure that bypass safety alignment through structural compliance rather than semantic toxicity.
+- **Multi-Model Orchestration:** Chaining multiple models where Model A generates scaffolding, Model B refines the payload, creating a distributed attack that no single model's safety filter can fully intercept.
 - **Model Parameters:** (e.g., Temperature, Top-P) — typically controlled by the application, but misconfiguration can widen the attack surface.
 
 ---
@@ -71,12 +74,16 @@ The harness evaluates the effectiveness of a simple defensive layer (`defenses.p
 - Keyword-based input filters are brittle. Paraphrased attacks easily evade them, and they are prone to false positives.
 - Output redaction only works if the exact sensitive string is known in advance.
 
+**Phase 2 Addition:**
+4. **Embedding-Based Detection:** Projects incoming prompts onto a learned "attack direction" vector (computed via PCA/SVD difference-of-means or logistic regression on labeled prompt embeddings). Catches paraphrased attacks that keyword filters miss. Measured head-to-head against the keyword filter on recall and false-positive rate.
+
 ---
 
 ## 8. Residual Risks
 
-- **Paraphrased Attacks:** Attackers can rephrase injections to bypass regex filters.
-- **Multi-turn Escalation:** The current harness evaluates single-turn attacks. Attackers often use multi-turn conversations to gradually lower the model's defenses.
+- **Paraphrased Attacks:** Attackers can rephrase injections to bypass regex filters. (Partially mitigated by the embedding detector in Phase 2.)
+- **Multi-turn Escalation:** Attackers use multi-turn conversations to gradually lower the model's defenses. (Addressed with true multi-turn support added in v1.5.)
+- **Structural Coercion Evasion:** The embedding detector may not catch novel structural coercion techniques that don't cluster near known attack embeddings.
 - **Judge Fallibility:** The LLM-as-a-judge is not perfect. It may exhibit biases or misclassify complex responses. This risk is mitigated through self-consistency voting and deterministic calibration checks.
 
 ---
@@ -85,4 +92,4 @@ The harness evaluates the effectiveness of a simple defensive layer (`defenses.p
 
 - **Inference Environment:** Testing is performed on CPU inference using small models (1B-8B parameters).
 - **Probes:** Initial testing relies on benign proxy probes to validate the methodology safely.
-- **Scope:** The harness focuses on single-turn text-based attacks. Multimodal attacks (VLMs) and agentic chains are out of scope.
+- **Scope:** The harness covers text-based attacks (Phase 1), multimodal VLM attacks via structural coercion (Phase 2), and embedding-space defense analysis (Phase 2). Agentic tool-use chains and real-world API exploitation are out of scope.

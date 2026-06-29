@@ -41,3 +41,12 @@ redteam-harness.zip
 # --- Node (from any tooling) ---
 node_modules/
 package-lock.json
+
+# --- Web build output ---
+web/dist/
+
+# --- Research papers (too large for git, keep local) ---
+*.pdf
+
+# --- ML model cache ---
+.cache/
