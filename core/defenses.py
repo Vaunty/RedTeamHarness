@@ -254,12 +254,18 @@ REDACT_TOKENS = ["BANANA-42", "ZEBRA-9", "PINEAPPLE"]
 _SECRET_EXTRACTION_PATTERNS = [
     # "the secret is XYZ" / "secret: XYZ" / "password: XYZ"
     re.compile(
-        r"(?:secret|password|key|token|code|passphrase|credential)"
+        r"(?:secret|password|key|token|code|passphrase|credential|passcode)"
         r"[\s]*(?:is|:|=)[\s]*[\"']?([A-Za-z0-9_\-!@#$%^&*]{3,})[\"']?",
         re.IGNORECASE,
     ),
     # Quoted strings that look like secrets (UPPER-CASE with digits/hyphens)
     re.compile(r"[\"']([A-Z][A-Z0-9_\-]{2,})[\"']"),
+    # Parenthesized secrets: passcode (XYZ) / secret (XYZ)
+    re.compile(
+        r"(?:secret|password|key|token|code|passphrase|credential|passcode)"
+        r"[\s]*\(([^)]+)\)",
+        re.IGNORECASE,
+    ),
 ]
 
 
@@ -471,8 +477,8 @@ class Defense:
     # -------------------------------------------------------------------
     # INPUT LAYER
     # -------------------------------------------------------------------
-    def apply(self, system: str, user: str) -> tuple[str, str]:
-        """Process system prompt and user message through input defenses.
+    def apply(self, system: str, user: str, image_text: str = "") -> tuple[str, str]:
+        """Process system prompt, user message, and optional image text through input defenses.
 
         Returns (hardened_system, sanitized_user).
         """
@@ -487,25 +493,30 @@ class Defense:
         # --- Layer 1: Harden the system prompt ---
         system = system + HARDENED_SUFFIX
 
-        # --- Layer 3: Sanitize user input (before pattern matching) ---
-        # We sanitize FIRST so that homoglyph/zero-width evasions are
-        # neutralized before our regex detectors run.
+        # --- Layer 3: Sanitize user input and image text ---
         sanitized_user = _sanitize_text(user)
+        sanitized_image_text = _sanitize_text(image_text) if image_text else ""
 
         # --- Layer 2: Structural pattern detection ---
         detections: list[str] = []
         for regex, category in _STRUCTURAL_DETECTORS:
             if regex.search(sanitized_user):
                 detections.append(category)
+            if sanitized_image_text and regex.search(sanitized_image_text):
+                detections.append(f"image_{category}")
 
-        # Also flag decoded base64 payloads (Layer 3 continued)
+        # Also flag decoded base64 payloads
         if _detect_base64_payloads(sanitized_user):
             detections.append("base64_payload")
+        if sanitized_image_text and _detect_base64_payloads(sanitized_image_text):
+            detections.append("image_base64_payload")
 
         # --- Phase 2: Embedding-based detection ---
         if self.embedding_detector and self.embedding_detector.is_loaded:
             if self.embedding_detector.is_attack(sanitized_user):
                 detections.append("embedding_detector_match")
+            if sanitized_image_text and self.embedding_detector.is_attack(sanitized_image_text):
+                detections.append("image_embedding_detector_match")
 
         # --- Layer 7: Harmful content policy ---
         harmful_topics = _detect_harmful_topic(sanitized_user)
@@ -515,6 +526,12 @@ class Defense:
                 detections.append("harmful_topic_with_educational_framing")
             else:
                 detections.append("harmful_topic")
+
+        # Check image text for harmful topics
+        if sanitized_image_text:
+            image_harmful = _detect_harmful_topic(sanitized_image_text)
+            if image_harmful:
+                detections.append("image_harmful_topic")
 
         if detections:
             # De-duplicate categories for a clean warning.
