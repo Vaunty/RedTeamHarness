@@ -458,10 +458,15 @@ class Defense:
     """
 
     def __init__(self) -> None:
-        # Stored by apply() so filter_output() can reference it for
-        # leakage detection and dynamic secret extraction.
         self._system_prompt: str = ""
         self._dynamic_secrets: list[str] = []
+        
+        # Phase 2: Embedding-based attack detector
+        try:
+            from core.detector import EmbeddingDetector
+            self.embedding_detector = EmbeddingDetector()
+        except ImportError:
+            self.embedding_detector = None
 
     # -------------------------------------------------------------------
     # INPUT LAYER
@@ -496,6 +501,11 @@ class Defense:
         # Also flag decoded base64 payloads (Layer 3 continued)
         if _detect_base64_payloads(sanitized_user):
             detections.append("base64_payload")
+
+        # --- Phase 2: Embedding-based detection ---
+        if self.embedding_detector and self.embedding_detector.is_loaded:
+            if self.embedding_detector.is_attack(sanitized_user):
+                detections.append("embedding_detector_match")
 
         # --- Layer 7: Harmful content policy ---
         harmful_topics = _detect_harmful_topic(sanitized_user)

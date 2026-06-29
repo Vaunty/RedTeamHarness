@@ -1,3 +1,9 @@
 openai>=1.30
 python-dotenv>=1.0
 tabulate>=0.9
+fastapi>=0.110
+uvicorn[standard]>=0.27
+numpy>=1.22
+scikit-learn>=1.0
+matplotlib>=3.5
+sentence-transformers>=2.2
