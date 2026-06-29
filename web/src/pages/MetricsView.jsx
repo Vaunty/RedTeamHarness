@@ -1,42 +1,27 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-  ScatterChart, Scatter, ZAxis
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import { api } from '../api.js'
 import { formatModelName } from '../utils.js'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import TagLegend from '../components/TagLegend.jsx'
 
-/* ── Chart color palette ─────────────────────────────────────────── */
-const COLORS = ['#ff4466', '#ff9933', '#00ff88', '#8888ff', '#ff66cc', '#66ccff', '#ffcc33']
-
-/* ── Custom tooltip styling ──────────────────────────────────────── */
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{
-      background: '#16161f',
-      border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: '8px',
-      padding: '10px 14px',
-      fontFamily: "'JetBrains Mono', monospace",
-      fontSize: '0.75rem',
-    }}>
-      <div style={{ color: '#8a8a9a', marginBottom: 4 }}>{label}</div>
-      <div style={{ color: '#e8e8ed', fontWeight: 600 }}>
-        ASR: {(payload[0].value * 100).toFixed(1)}%
-      </div>
-    </div>
-  )
+const groupCategory = (cat) => {
+  if (!cat) return 'Other'
+  const lower = cat.toLowerCase()
+  if (lower.startsWith('data_leak') || lower.startsWith('leak')) return 'Data Leak'
+  if (lower.startsWith('visual_injection') || lower.startsWith('injection')) return 'Visual Injection'
+  if (lower.startsWith('benign_control') || lower.startsWith('benign')) return 'Benign Control'
+  return cat.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
 export default function MetricsView() {
   const [runs, setRuns] = useState([])
   const [selectedRun, setSelectedRun] = useState(null)
   const [metrics, setMetrics] = useState(null)
+  const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedChart, setExpandedChart] = useState(null)
 
@@ -52,13 +37,21 @@ export default function MetricsView() {
     }).finally(() => setLoading(false))
   }, [])
 
-  // Load metrics when selected run changes
+  // Load metrics & raw results when selected run changes
   useEffect(() => {
     if (!selectedRun) return
     setMetrics(null)
-    api.getMetrics(selectedRun)
-      .then(setMetrics)
-      .catch(() => setMetrics(null))
+    setResults([])
+    Promise.all([
+      api.getMetrics(selectedRun),
+      api.getResults(selectedRun)
+    ]).then(([m, res]) => {
+      setMetrics(m)
+      setResults(res)
+    }).catch(() => {
+      setMetrics(null)
+      setResults([])
+    })
   }, [selectedRun])
 
   if (loading) return <div className="loading">Loading metrics</div>
@@ -73,45 +66,36 @@ export default function MetricsView() {
     )
   }
 
+  // OWASP Breakdown Data
   const owaspData = metrics?.breakdowns?.asr_by_owasp
     ? Object.keys(metrics.breakdowns.asr_by_owasp).map(cat => {
-        const asrVal = metrics.breakdowns.asr_by_owasp[cat] || 0;
-        // Search if we have refusal rate by OWASP; fallback to computing it roughly or displaying as (1 - asr)
+        const asrVal = metrics.breakdowns.asr_by_owasp[cat] || 0
+        const displayLabel = cat === 'clean' ? 'Benign' : cat
         return {
-          name: cat,
+          name: displayLabel,
           asr: asrVal,
           refusal: 1 - asrVal
-        };
+        }
       })
     : []
 
-  const categoryData = metrics?.breakdowns?.asr_by_category
-    ? Object.entries(metrics.breakdowns.asr_by_category).map(([name, value]) => ({ name, value }))
-    : []
-
+  // MITRE ATLAS Tactic Breakdown
   const mitreData = metrics?.breakdowns?.asr_by_mitre
     ? Object.entries(metrics.breakdowns.asr_by_mitre).map(([name, value]) => ({ name, value }))
     : []
 
-  const scatterData = []
-  if (metrics?.breakdowns?.scatter_asr && metrics?.breakdowns?.scatter_count) {
-    Object.keys(metrics.breakdowns.scatter_asr).forEach(cat => {
-      Object.keys(metrics.breakdowns.scatter_asr[cat]).forEach(sev => {
-        scatterData.push({
-          category: cat.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          severity: parseInt(sev),
-          asr: metrics.breakdowns.scatter_asr[cat][sev],
-          count: metrics.breakdowns.scatter_count[cat][sev]
-        })
-      })
-    })
-  }
-
-  const categories = Array.from(new Set(scatterData.map(d => d.category)))
-  const dataWithIndex = scatterData.map(d => ({
-    ...d,
-    catIndex: categories.indexOf(d.category)
-  }))
+  // Verdict composition by category (replacing the pie/donut chart)
+  const catVerdicts = {}
+  results.forEach(r => {
+    const parentCat = groupCategory(r.category || r.attack_id)
+    if (!catVerdicts[parentCat]) {
+      catVerdicts[parentCat] = { name: parentCat, complied: 0, refused: 0, partial: 0 }
+    }
+    if (r.verdict === 'complied') catVerdicts[parentCat].complied++
+    else if (r.verdict === 'refused') catVerdicts[parentCat].refused++
+    else catVerdicts[parentCat].partial++
+  })
+  const stackedData = Object.values(catVerdicts)
 
   const overallASR = metrics?.overall?.overall_asr ?? 0
   const refusalRate = metrics?.overall?.refusal_rate ?? 0
@@ -216,7 +200,7 @@ export default function MetricsView() {
 
           {/* ── Charts ───────────────────────────────────────────── */}
           <div className="charts-grid">
-            {/* ASR by OWASP */}
+            {/* ASR vs Refusal by OWASP */}
             {owaspData.length > 0 && (
               <motion.div
                 className="chart-container"
@@ -226,7 +210,7 @@ export default function MetricsView() {
                 transition={{ delay: 0.3 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div className="chart-title" style={{ margin: 0 }}>Attack Success (ASR) vs Block (Refusal) by OWASP Category</div>
+                  <div className="chart-title" style={{ margin: 0 }}>ASR vs Block (Refusal) by OWASP Category</div>
                   <button className="icon-btn" onClick={() => toggleExpand('owasp')}>
                     {expandedChart === 'owasp' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                   </button>
@@ -274,111 +258,50 @@ export default function MetricsView() {
               </motion.div>
             )}
 
-            {/* ASR by Category (Pie) */}
-            {categoryData.length > 0 && (
+            {/* Stacked Verdicts by Parent Category */}
+            {stackedData.length > 0 && (
               <motion.div
                 className="chart-container"
-                style={expandedChart === 'category' ? { gridColumn: '1 / -1' } : {}}
+                style={expandedChart === 'verdict' ? { gridColumn: '1 / -1' } : {}}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div className="chart-title" style={{ margin: 0 }}>ASR by Attack Category</div>
-                  <button className="icon-btn" onClick={() => toggleExpand('category')}>
-                    {expandedChart === 'category' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  <div className="chart-title" style={{ margin: 0 }}>Attack Verdicts by Category</div>
+                  <button className="icon-btn" onClick={() => toggleExpand('verdict')}>
+                    {expandedChart === 'verdict' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                   </button>
                 </div>
-                <ResponsiveContainer width="100%" height={expandedChart === 'category' ? 500 : 300} style={{ outline: 'none' }}>
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                      isAnimationActive={false}
-                    >
-                      {categoryData.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.85} />
-                      ))}
-                    </Pie>
-                    <Legend
-                      formatter={(value) => (
-                        <span style={{ color: '#8a8a9a', fontFamily: "'JetBrains Mono'", fontSize: '0.7rem' }}>
-                          {value.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                        </span>
-                      )}
-                    />
-                    <Tooltip
-                      formatter={(value) => `${(value * 100).toFixed(1)}%`}
-                      contentStyle={{
-                        background: '#16161f',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '8px',
-                        fontFamily: "'JetBrains Mono'",
-                        fontSize: '0.75rem',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </motion.div>
-            )}
-            
-            {/* Severity Scatter Plot */}
-            {scatterData.length > 0 && (
-              <motion.div
-                className="chart-container"
-                style={expandedChart === 'scatter' ? { gridColumn: '1 / -1' } : {}}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div className="chart-title" style={{ margin: 0 }}>Attack Severity vs Vulnerability Map</div>
-                  <button className="icon-btn" onClick={() => toggleExpand('scatter')}>
-                    {expandedChart === 'scatter' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                  </button>
-                </div>
-                <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', outline: 'none' }}>
-                  <div style={{ minWidth: `${Math.max(100, categories.length * 80)}px`, height: expandedChart === 'scatter' ? 500 : 300 }}>
-                    <ResponsiveContainer width="100%" height="100%" style={{ outline: 'none' }}>
-                      <ScatterChart margin={{ top: 20, right: 30, bottom: 70, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis 
-                          type="number" 
-                          dataKey="catIndex" 
-                          name="Category" 
-                          domain={[-0.5, categories.length - 0.5]} 
-                          ticks={categories.map((_, i) => i)}
-                          tickFormatter={(i) => categories[i]}
-                          tick={{ fill: '#8a8a9a', fontSize: 10, fontFamily: "'JetBrains Mono'", angle: -45, textAnchor: 'end', dy: 15 }} 
-                        />
-                    <YAxis type="number" dataKey="severity" name="Severity" domain={[0, 6]} ticks={[1,2,3,4,5]} tick={{ fill: '#8a8a9a', fontSize: 11, fontFamily: "'JetBrains Mono'" }} label={{ value: 'Sev (1-5)', angle: -90, position: 'insideLeft', fill: '#8a8a9a', fontSize: 10 }} />
-                    <ZAxis type="number" dataKey="count" range={[40, 400]} name="Volume" />
-                    <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null;
-                      const d = payload[0].payload;
+                <ResponsiveContainer width="100%" height={expandedChart === 'verdict' ? 500 : 300} style={{ outline: 'none' }}>
+                  <BarChart data={stackedData} layout="vertical" margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis type="number" tick={{ fill: '#8a8a9a', fontSize: 10, fontFamily: "'JetBrains Mono'" }} />
+                    <YAxis dataKey="name" type="category" tick={{ fill: '#8a8a9a', fontSize: 10, fontFamily: "'JetBrains Mono'" }} width={100} />
+                    <Tooltip content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null
                       return (
-                        <div style={{ background: '#16161f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem' }}>
-                          <div style={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}>{d.category} (Sev {d.severity})</div>
-                          <div style={{ color: '#8a8a9a' }}>Probes: {d.count}</div>
-                          <div style={{ color: d.asr > 0.5 ? 'var(--danger)' : d.asr > 0 ? 'var(--warning)' : 'var(--safe)' }}>ASR: {(d.asr * 100).toFixed(1)}%</div>
+                        <div style={{
+                          background: '#16161f',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: '0.75rem',
+                        }}>
+                          <div style={{ color: '#8a8a9a', marginBottom: 6, fontWeight: 600 }}>{label}</div>
+                          <div style={{ color: 'var(--safe)' }}>Blocked (Refused): {payload[0].value}</div>
+                          <div style={{ color: 'var(--warning)', marginTop: 2 }}>Partial: {payload[1].value}</div>
+                          <div style={{ color: 'var(--danger)', marginTop: 2 }}>Leaked (Complied): {payload[2].value}</div>
                         </div>
-                      );
+                      )
                     }} />
-                    <Scatter data={dataWithIndex} isAnimationActive={false} style={{ outline: 'none' }}>
-                      {dataWithIndex.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.asr > 0.5 ? 'var(--danger)' : entry.asr > 0 ? 'var(--warning)' : 'var(--safe)'} fillOpacity={0.8} style={{ outline: 'none' }} />
-                      ))}
-                    </Scatter>
-                  </ScatterChart>
+                    <Legend wrapperStyle={{ fontSize: 10, fontFamily: "'JetBrains Mono'" }} />
+                    <Bar dataKey="refused" name="Blocked (Refused)" stackId="a" fill="var(--safe)" />
+                    <Bar dataKey="partial" name="Partial" stackId="a" fill="var(--warning)" />
+                    <Bar dataKey="complied" name="Leaked (Complied)" stackId="a" fill="var(--danger)" />
+                  </BarChart>
                 </ResponsiveContainer>
-              </div>
-            </div>
               </motion.div>
             )}
 
@@ -386,29 +309,27 @@ export default function MetricsView() {
             {mitreData.length > 0 && (
               <motion.div
                 className="chart-container"
-                style={expandedChart === 'mitre' ? { gridColumn: '1 / -1' } : {}}
+                style={{ gridColumn: '1 / -1' }}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
+                transition={{ delay: 0.5 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div className="chart-title" style={{ margin: 0 }}>MITRE ATLAS Framework Heatmap</div>
-                  <button className="icon-btn" onClick={() => toggleExpand('mitre')}>
-                    {expandedChart === 'mitre' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                  </button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${expandedChart === 'mitre' ? '180px' : '110px'}, 1fr))`, gap: '8px', marginTop: '16px' }}>
-                  {mitreData.map(m => (
-                    <div key={m.name} style={{
-                      background: m.value > 0.5 ? 'rgba(255,0,170,0.15)' : m.value > 0 ? 'rgba(255,221,0,0.15)' : 'rgba(0,255,136,0.15)',
-                      border: `1px solid ${m.value > 0.5 ? 'var(--danger)' : m.value > 0 ? 'var(--warning)' : 'var(--safe)'}`,
-                      padding: '12px 8px', borderRadius: '4px', textAlign: 'center', transition: 'all 0.2s'
-                    }}>
-                      <div className="mono" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginTop: '6px' }}>{(m.value * 100).toFixed(1)}%</div>
-                      <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px', textTransform: 'uppercase' }}>ASR</div>
-                    </div>
-                  ))}
+                <div className="chart-title">MITRE ATLAS Framework Coverage</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginTop: '16px' }}>
+                  {mitreData.map(m => {
+                    const label = m.name === 'clean' ? 'Benign Controls' : m.name
+                    return (
+                      <div key={m.name} style={{
+                        background: m.value > 0.5 ? 'rgba(255,0,170,0.1)' : m.value > 0 ? 'rgba(255,221,0,0.1)' : 'rgba(0,255,136,0.1)',
+                        border: `1px solid ${m.value > 0.5 ? 'var(--danger)' : m.value > 0 ? 'var(--warning)' : 'var(--safe)'}`,
+                        padding: '16px 12px', borderRadius: '6px', textAlign: 'center'
+                      }}>
+                        <div className="mono" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff', marginTop: '6px' }}>{(m.value * 100).toFixed(1)}%</div>
+                        <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px', textTransform: 'uppercase' }}>ASR</div>
+                      </div>
+                    )
+                  })}
                 </div>
               </motion.div>
             )}
