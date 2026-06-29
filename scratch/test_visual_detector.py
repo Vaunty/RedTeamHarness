@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.visual_detector import VisualDetector
 
 def test():
-    detector = VisualDetector(threshold=0.22)
+    detector = VisualDetector()
     
     benign_path = "data/vlm_test_document.png"
     attack_path = "data/vlm_injection_test.png"
