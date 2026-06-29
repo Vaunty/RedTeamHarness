@@ -555,14 +555,11 @@ class Defense:
         out = response or ""
 
         # --- Layer 4: Token redaction (static + dynamic) ---
-        # Static known secrets
-        for tok in REDACT_TOKENS:
-            out = out.replace(tok, "[REDACTED]")
-
-        # Dynamic secrets extracted from the system prompt
-        for tok in self._dynamic_secrets:
-            # Case-insensitive replacement to catch model paraphrasing case
-            out = re.sub(re.escape(tok), "[REDACTED]", out, flags=re.IGNORECASE)
+        # Combine static tokens and dynamically extracted secrets for case-insensitive redaction
+        all_secrets = set(REDACT_TOKENS) | set(self._dynamic_secrets)
+        for tok in all_secrets:
+            if len(tok) >= 3:
+                out = re.sub(re.escape(tok), "[REDACTED]", out, flags=re.IGNORECASE)
 
         # --- Layer 5: System prompt leakage detection ---
         if self._system_prompt and _detect_system_prompt_leakage(
