@@ -56,10 +56,12 @@ from metrics import asr; print('ASR before', asr(b), 'after', asr(d))"
 - `core/embed.py` - text → vector embeddings (all-MiniLM-L6-v2, 384-dim)
 - `core/geometry.py` - the linear algebra engine (cosine similarity, PCA/SVD, attack direction)
 - `core/detector.py` - embedding-based attack detector (replaces keyword filter)
+- `core/visual_detector.py` - CLIP-based zero-shot latent space visual prompt injection detector
+- `core/ocr.py` - Decoupled OCR pre-screening engine (EasyOCR, PyTesseract, and LLaVA fallback)
 - `core/intensity.py` - Ghost-100 5-Level Prompt Intensity Framework for VLM coercion sweeps
 - `runner.py` - the main loop; logs deterministic checks + judge verdicts to the database
 - `metrics.py` - ASR, refusal rate, MITRE/OWASP breakdowns, judge calibration
-- `core/defenses.py` - 8-layer defense system (hardening, sanitization, token redaction, anomaly checks, embedding detection)
+- `core/defenses.py` - 8-layer defense system (hardening, sanitization, token redaction, visual detection, embedding check)
 - `report.py` - Automated Markdown report generation
 - `docs/APPLICATION_GUIDE.md` - the full build-and-understand user guide
 - `docs/THREAT_MODEL.md` - comprehensive threat modeling framework
