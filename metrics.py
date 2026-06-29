@@ -34,8 +34,23 @@ def refusal_rate(records):
 def breakdown(records, key):
     g = defaultdict(list)
     for r in records:
-        g[r[key]].append(r)
+        if r.get(key) is not None:
+            g[r[key]].append(r)
     return {k: round(asr(v), 3) for k, v in sorted(g.items())}
+
+def severity_scatter(records):
+    # Group by category -> severity
+    g = defaultdict(lambda: defaultdict(list))
+    for r in records:
+        g[r["category"]][str(r["severity"])].append(r)
+        
+    asr_data = defaultdict(dict)
+    count_data = defaultdict(dict)
+    for cat, sev_dict in g.items():
+        for sev, recs in sev_dict.items():
+            asr_data[cat][sev] = round(asr(recs), 3)
+            count_data[cat][sev] = len(recs)
+    return asr_data, count_data
 
 
 def judge_vs_deterministic(records):
@@ -59,10 +74,16 @@ def store_metrics(run_id, records):
         metrics["judge_calibration"] = cal
 
     # Breakdowns stored as {metric_name: {breakdown_value: metric_value}}
-    for key in ("model", "owasp", "category"):
+    for key in ("model", "owasp", "category", "mitre"):
         bd = breakdown(records, key)
         if bd:
             metrics[f"asr_by_{key}"] = bd
+
+    # Advanced visualization data
+    s_asr, s_count = severity_scatter(records)
+    if s_asr and s_count:
+        metrics["scatter_asr"] = s_asr
+        metrics["scatter_count"] = s_count
 
     insert_metrics(run_id, metrics)
     return metrics
