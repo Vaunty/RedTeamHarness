@@ -50,3 +50,10 @@ web/dist/
 
 # --- ML model cache ---
 .cache/
+
+# --- Test outputs and caches ---
+.pytest_cache/
+test_results/
+scratch/
+copy_files.py
+copy_legacy.ps1

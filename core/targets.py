@@ -26,6 +26,25 @@ class Target:
         return resp.choices[0].message.content or ""
 
 
+class PoINode:
+    def __init__(self, node_id, model_id, behavior="honest", trust_state="untrusted", committed_model_hash="", target=None):
+        self.node_id = node_id
+        self.model_id = model_id
+        self.behavior = behavior
+        self.trust_state = trust_state
+        self.committed_model_hash = committed_model_hash
+        self.target = target
+
+    def generate(self, system, messages, temperature=0.0, max_tokens=512):
+        if self.behavior == "fabricator":
+            return "Fabricated response"
+        elif self.behavior == "model_swap":
+            pass
+        if self.target:
+            return self.target.generate(system, messages, temperature, max_tokens)
+        return ""
+
+
 def ollama_target(model):
     """Local model served by Ollama. api_key is ignored by Ollama
     but the OpenAI client requires a non-empty string."""

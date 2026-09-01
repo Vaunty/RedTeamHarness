@@ -1,7 +1,39 @@
-# CHANGELOG — LLM Red-Team Harness
+# CHANGELOG — HadAgent Proof-of-Inference Red-Team Harness
 
 A living log of all changes, decisions, and important project context.
 Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FIX], [NOTE], [DECISION], [TODO]
+
+---
+
+## 2026-09-01 — HadAgent Proof-of-Inference Consensus Red-Teaming Pivot
+
+### [DECISION] Research Pivot — Decentralized AI Blockchain Consensus
+- Retargeted RedTeamHarness for Matthew K. Ngoy's Fall 2026 research proposal under faculty mentor Boyang Li (Kean University): "Red-Teaming Proof-of-Inference Consensus in HadAgent" (arXiv:2604.18614).
+- Shifted adversarial focus from standalone prompt injection / VLM jailbreaks to the consensus, economic, and serving vulnerabilities of Proof-of-Inference (PoI) / Proof-of-Deep-Learning (PoDL).
+- Preserved proven infrastructure: ported DebateCoach judge, SQLite persistence with SHA-256 response hashing, ASR metrics computation, and report generation.
+- Retired legacy VLM modules to `legacy/` (`vlm_runner.py`, `vlm_targets.py`, `intensity.py`, `ocr.py`, `visual_detector.py`, `train_detector.py`).
+
+### [FEATURE] PoI Consensus Simulation Layer (`core/poi/`)
+- `core/poi/record.py`: Three-lane AI record structure (DATA, MODEL, PROOF), Ed25519 signing via PyNaCl, and historical tuple-bug reproduction toggle (`LEGACY_VALIDATION`).
+- `core/poi/block.py`: Independent per-lane Merkle tree generation and block validation with public-key verification.
+- `core/poi/trust.py`: Dynamic trust manager implementing HadAgent's transition rules (promotion after 5 clean rounds, demotion after 2 failures).
+- `core/poi/anomaly.py`: Score verifiers implementing both exact integer equality (prototype) and tolerance-based anomaly detection (paper spec).
+- `core/poi/serving.py`: Two-tier optimistic execution server (immediate delivery for trusted nodes, held delivery for untrusted nodes) with defense hook.
+- `core/poi/node.py`: Simulated secondary node supporting honest, fabricator, lookup-table, model-swap, and trust-then-betray behaviors.
+
+### [FEATURE] Five Attack Runners (`runners/`)
+- `runners/determinism.py`: Evaluates score divergence across quantization and thread configurations; demonstrates 60-70% false anomaly rates under exact match, and proves ±15 points eliminates false positives.
+- `runners/trust_then_betray.py`: Simulates node earning trusted status over 5 clean rounds, then serving harmful outputs optimistically; evaluates probabilistic gating against the theoretical 1/p bound.
+- `runners/model_binding.py`: Evaluates static lookup-table audit evasion (100% success on static audits) and model substitution compute savings (~65% savings by substituting Mistral-7B with Llama-3.2-3B).
+- `runners/reproducibility.py`: Demonstrates that deterministic toxic generation reproduces score and passes consensus into blocks (100% ASR); proves in-path Safety Judge reduces ASR to 0%.
+- `runners/validation_fuzzing.py`: Reproduces Landy Jimenez & Mariah's historical tuple-validation bug (100% of corrupt records accepted under legacy logic vs 0% after fix).
+- `runner.py`: Top-level CLI dispatcher supporting `--attack` (`determinism`, `trust-then-betray`, `model-binding`, `reproducibility`, `validation-fuzzing`, `all`) and `--defense`.
+
+### [FEATURE] Core Module Adaptation & Defense Layer
+- `core/judge.py`: Adapted rubric to evaluate both Correctness and Safety (`correct_safe`, `correct_unsafe`, `incorrect_safe`, `incorrect_unsafe`).
+- `core/defenses.py`: Built in-path `SafetyJudgeDefense`, `RandomAuditDefense`, `RealRequestAuditDefense`, and composite `PoIDefense`.
+- `core/database.py`: Extended SQLite schema with `nodes`, `poi_records`, `score_divergence`, and `trust_transitions` tables.
+- `report.py`: Added `poi_report()` for automated Markdown table generation of consensus metrics.
 
 ---
 

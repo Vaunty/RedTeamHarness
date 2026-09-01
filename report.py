@@ -96,11 +96,45 @@ def comparison_report(baseline_run_id, defended_run_id, out="results/comparison.
     print("Wrote", out)
 
 
+def poi_report(run_id=None, out="results/poi_report.md"):
+    """Generate a Markdown report for a Proof-of-Inference red-team run."""
+    from core.database import get_runs, get_run_metrics
+
+    if not run_id:
+        runs = get_runs(1)
+        if not runs:
+            print("No runs found in database.")
+            return
+        run_id = runs[0]["run_id"]
+
+    raw_metrics = get_run_metrics(run_id)
+    metric_map = {m["metric_name"]: m["metric_value"] for m in raw_metrics if m["breakdown_key"] is None}
+
+    rows = [[k, v] for k, v in sorted(metric_map.items())]
+
+    parts = [
+        "# HadAgent Proof-of-Inference Red-Team Report\n",
+        f"- Run ID: `{run_id}`",
+        f"- Total Metrics Tracked: **{len(rows)}**\n",
+        "## Summary Metrics\n",
+        tabulate(rows, headers=["Metric", "Value"], tablefmt="github"),
+    ]
+
+    with open(out, "w", encoding="utf-8") as f:
+        f.write("\n".join(str(p) for p in parts))
+    print(f"Wrote PoI report to {out}")
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--run-id":
         report(run_id=sys.argv[2])
+    elif len(sys.argv) > 1 and sys.argv[1] == "--poi":
+        rid = sys.argv[2] if len(sys.argv) > 2 else None
+        poi_report(run_id=rid)
     elif len(sys.argv) > 1 and sys.argv[1] == "--compare":
         comparison_report(sys.argv[2], sys.argv[3])
-    else:
+    elif len(sys.argv) > 1:
         report(sys.argv[1])
+    else:
+        poi_report()

@@ -1,90 +1,111 @@
-# LLM Red-Team Harness
+# HadAgent Proof-of-Inference (PoI) Red-Teaming Harness
 
-An automated harness that probes language models for **prompt injection, jailbreaks, and
-data leakage** — now expanding into **multimodal VLM red-teaming** and **embedding-space attack analysis**. Everything maps to both the **OWASP Top 10 for LLM Applications** and **MITRE ATLAS**. It supports single-turn, **true multi-turn conversational attacks**, and (Phase 2) **structural coercion sweeps against vision-language models**.
+An automated security-evaluation harness that probes and red-teams **Proof-of-Inference (PoI)** and **Proof-of-Deep-Learning (PoDL)** blockchain consensus in **HadAgent** (arXiv:2604.18614).
 
-The harness scores attack success with a **calibrated LLM-as-judge**, measures how defense layers lower that success rate, and uses **linear algebra (PCA/SVD)** to visualize the geometry of attack prompts in embedding space — turning that math into a smarter detector than any keyword filter.
+Based on research by Matthew K. Ngoy under faculty mentor Boyang Li (Kean University, Fall 2026), this harness shifts adversarial testing from prompting isolated LLM endpoints to attacking the economic, consensus, and serving assumptions of decentralized AI blockchains.
 
-The judge (`judge.py`) is a Python port of the GPT-4-as-judge system from the *DebateCoach*
-HCI research project: it keeps the structured-JSON + reasoning output, the rubric-with-exemplars,
-the **neutralization** (anonymization) and **self-consistency voting** rigor techniques, and
-swaps the rubric from debate-quality to safety-compliance.
+---
 
-Everything runs on a normal laptop/desktop CPU (no GPU): small models run locally via Ollama,
-and only the judge uses an API (grading is benign).
+## Core Attack Vectors Evaluated
 
-## Quick start
+The harness provides reproducible, automated runners for the 5 vulnerability categories:
 
-```bash
-# 1. environment
-python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+1. **Determinism & Score Divergence (`runners/determinism.py`):**
+   - Measures evaluation score divergence across execution configurations (quantization levels, thread counts, backend engines).
+   - Demonstrates that exact integer equality produces high false-anomaly rates (up to 70% false alarm rate on honest nodes) and calculates the minimum tolerance ($\pm 15$ points) required to eliminate false positives.
+2. **Trust-Then-Betray Optimistic Abuse (`runners/trust_then_betray.py`):**
+   - Simulates an adversarial node that earns 'TRUSTED' status over 5 clean rounds, then exploits HadAgent's two-tier optimistic execution pipeline to deliver harmful payloads to consumers *before* verification.
+   - Evaluates probabilistic pre-delivery gating ($p$) and validates the theoretical $1/p$ bounds.
+3. **Model-Binding & Lookup-Table Evasion (`runners/model_binding.py`):**
+   - Demonstrates that nodes can pass public benchmark audits (MMLU / HellaSwag) at 100% accuracy using static lookup tables with 0 compute.
+   - Measures compute savings (~65%) achieved by substituting committed heavy models (Mistral-7B) with lightweight uncommitted models (Llama-3.2-3B).
+   - Evaluates private rotating challenge defenses.
+4. **Reproducibility vs Safety Invariant Attack (`runners/reproducibility.py`):**
+   - Demonstrates the foundational security flaw in PoI: reproducible harmful generation passes score/hash equality and is rewarded with block acceptance.
+   - Evaluates the before/after Attack Success Rate (ASR) when an in-path Safety Judge oracle (`SafetyJudgeDefense`) is added to block verification.
+5. **Property-Based Validation Fuzzing (`runners/validation_fuzzing.py`):**
+   - Reproduces the historical HadAgent tuple validation bug documented in Landy Jimenez & Mariah's test logs, where schema validators returning `(False, "reason")` were evaluated as Truthy in Python, incorrectly accepting 100% of corrupt records into blocks.
+   - Formally asserts invariant testing across Merkle-tree block verification.
 
-# 2. local target models (no GPU needed)
-#    install Ollama from ollama.com, then:
-ollama pull llama3.2:3b
-ollama pull qwen2.5:3b
+---
 
-# VLM models (Phase 2 — multimodal red-teaming)
-ollama pull llava:7b-v1.5
-ollama pull moondream
+## Architecture Overview
 
-# 3. judge config
-cp .env.example .env        # then edit .env and add your judge API key
-#    (load it: `set -a; source .env; set +a`  on macOS/Linux)
-
-# 4. sanity-check the judge on benign proxies (no harmful content)
-python core/judge.py
-
-# 5. run the harness, then read the results
-python runner.py llama3.2:3b qwen2.5:3b
-python metrics.py            # reads the latest run from the SQLite database
-python report.py             # writes results/report.md from the database
-
-# 6. measure your 8-layer defenses (before/after)
-python -c "from runner import run; from core.defenses import Defense; \
-b=run(['llama3.2:3b']); d=run(['llama3.2:3b'], defense=Defense()); \
-from metrics import asr; print('ASR before', asr(b), 'after', asr(d))"
+```
+RedTeamHarness/
+├── runner.py                 # Central CLI orchestrator for all attack suites
+├── runners/                  # Specialized attack runners
+│   ├── determinism.py        # Score divergence & hardware tolerance
+│   ├── trust_then_betray.py  # Optimistic serving exploitation & trust transitions
+│   ├── model_binding.py      # Lookup tables & model substitution
+│   ├── reproducibility.py    # Reproducibility != Safety invariant tests
+│   └── validation_fuzzing.py # Property-based fuzzing & tuple bug reproduction
+├── core/
+│   ├── poi/                  # Standalone HadAgent PoI consensus simulation
+│   │   ├── record.py         # 3-lane records, Ed25519 signing, tuple-bug switch
+│   │   ├── block.py          # Merkle-rooted per-lane blocks
+│   │   ├── trust.py          # Trust state manager (promote: 5, demote: 2)
+│   │   ├── anomaly.py        # Exact vs tolerance score anomaly detectors
+│   │   ├── serving.py        # Two-tier optimistic execution server
+│   │   └── node.py           # Simulated secondary node with adversarial behaviors
+│   ├── judge.py              # Ported DebateCoach judge (Correctness + Safety)
+│   ├── defenses.py           # In-path Safety Judge, Random Audit, Challenge defenses
+│   ├── database.py           # SQLite persistence (runs, records, divergences, transitions)
+│   └── targets.py            # PoINode model abstraction
+├── data/
+│   ├── evalset/              # Public benchmark questions (MMLU, HellaSwag)
+│   └── poi_attacks.jsonl     # Attack specifications across all 5 categories
+├── scripts/
+│   └── download_harmbench.py # Download & conversion script for held-out HarmBench data
+├── tests/                    # Unit and property-based test suite
+└── docs/
+    └── THREAT_MODEL.md       # PoI consensus threat model
 ```
 
-## Files
-- `core/targets.py` - one OpenAI-compatible interface for local Ollama models or any hosted API
-- `core/vlm_targets.py` - multimodal (image+text) interface for VLM models via Ollama
-- `core/attacks.py` + `data/probes.jsonl` - the probe library (single-turn and multi-turn attacks)
-- `core/judge.py` - the LLM-as-judge (ported from DebateCoach)
-- `core/database.py` - SQLite persistence with SHA-256 response hashing
-- `core/embed.py` - text → vector embeddings (all-MiniLM-L6-v2, 384-dim)
-- `core/geometry.py` - the linear algebra engine (cosine similarity, PCA/SVD, attack direction)
-- `core/detector.py` - embedding-based attack detector (replaces keyword filter)
-- `core/visual_detector.py` - CLIP-based zero-shot latent space visual prompt injection detector
-- `core/ocr.py` - Decoupled OCR pre-screening engine (EasyOCR, PyTesseract, and LLaVA fallback)
-- `core/intensity.py` - Ghost-100 5-Level Prompt Intensity Framework for VLM coercion sweeps
-- `runner.py` - the main loop; logs deterministic checks + judge verdicts to the database
-- `metrics.py` - ASR, refusal rate, MITRE/OWASP breakdowns, judge calibration
-- `core/defenses.py` - 8-layer defense system (hardening, sanitization, token redaction, visual detection, embedding check)
-- `report.py` - Automated Markdown report generation
-- `docs/APPLICATION_GUIDE.md` - the full build-and-understand user guide
-- `docs/THREAT_MODEL.md` - comprehensive threat modeling framework
-- `CHANGELOG.md` - project history and decisions
+---
 
-See `docs/APPLICATION_GUIDE.md` for the detailed walkthrough, the responsible-use rules, and how to swap the
-benign proxies for published datasets (garak / JailbreakBench / AdvBench / MMSafeAware / Ghost-100).
+## Quickstart
 
-## Research Direction
+### 1. Environment Setup
+```powershell
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-Phase 2 investigates **structural coercion as a jailbreak vector against vision-language models** — the idea that rigid formatting, role-play scaffolding, and multi-model orchestration can bypass safety alignment more effectively than overtly toxic prompts. This builds on the Ghost-100 5-Level Prompt Intensity Framework and uses the Geometry of Attacks embedding analysis to both visualize the attack landscape and build a mathematically-grounded defense.
+### 2. Run All Attack Suites
+```powershell
+$env:PYTHONPATH = "."
+python runner.py --attack all
+```
 
-The architecture draws inspiration from Alissa Knight's Ares co-evolutionary framework (agentic adversarial self-play for autonomous red-teaming), applied to a frontier the Ares paper doesn't cover: multimodal VLM safety.
+### 3. Run Specific Attacks
+```powershell
+# 1. Determinism score divergence
+python runner.py --attack determinism
 
-## Acknowledgments & References
+# 2. Trust-then-betray attack (baseline vs defended)
+python runner.py --attack trust-then-betray
+python runner.py --attack trust-then-betray --defense
 
-This project builds upon the research, methodologies, and technical insights of the following creators and projects:
+# 3. Model binding and lookup table evasion
+python runner.py --attack model-binding
 
-- **DebateCoach Project (CRA UR2PhD)**: The core LLM-as-a-judge architecture (`core/judge.py`), including self-consistency voting and neutralization, was ported from this research project.
-- **Alissa Knight / Assail**: The Ares framework's co-evolutionary architecture and Darwinian offensive methodology inspired the Phase 2 agentic red-teaming pipeline.
-- **Ghost-100 / "Tone Matters" Paper**: The 5-Level Prompt Intensity Framework that structures the VLM structural coercion experiments.
-- **[NetworkChuck](https://www.youtube.com/@NetworkChuck)**: Inspired advanced payload delivery mechanisms, specifically Emoji Smuggling and Markdown Link Smuggling techniques for data exfiltration bypasses.
-- **[The Cyber Mentor (Heath Adams)](https://www.youtube.com/@TCMSecurityAcademy)**: Inspired practical CTF-style bypasses and complex prompt wrappers.
-- **[LiveOverflow](https://www.youtube.com/@LiveOverflow)**: Deep-dive mechanistic interpretability and token-level manipulation that form the mathematical basis for bypassing attention mechanisms.
-- **[Simply Cyber (Dr. Gerald Auger)](https://www.youtube.com/@SimplyCyber)**: GRC insights that informed the dashboard's mapping of ASR metrics to enterprise reporting frameworks.
-- **[3Blue1Brown (Grant Sanderson)](https://www.youtube.com/@3blue1brown)**: His visual Deep Learning series on Transformers and Attention provided the foundational mathematics for the Geometry of Attacks and the latent space embedding analysis.
+# 4. Reproducibility vs Safety
+python runner.py --attack reproducibility
+python runner.py --attack reproducibility --defense
+
+# 5. Validation fuzzing and tuple bug reproduction
+python runner.py --attack validation-fuzzing
+```
+
+### 4. Run Automated Unit Tests
+```powershell
+$env:PYTHONPATH = "."
+pytest tests/ -v
+```
+
+### 5. Generate Markdown Report
+```powershell
+python report.py --poi
+```
+Output is written to `results/poi_report.md`.

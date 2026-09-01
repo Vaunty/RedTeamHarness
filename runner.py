@@ -1,112 +1,83 @@
-"""runner.py - the main loop: targets x attacks -> responses -> judge -> log.
+"""
+runner.py - Main Orchestrator for HadAgent Proof-of-Inference Red-Teaming.
 
-Logs BOTH the cheap deterministic check and the LLM judge verdict, so you can
-calibrate the judge against ground truth on the benign proxies (see metrics.py).
-
-Results are stored in:
-  1. SQLite database (primary) — structured, queryable, with SHA-256 response hashing
-  2. JSONL file (secondary) — backward-compatible flat-file export
+Dispatches attack experiments across the five vulnerability categories identified
+in the research proposal:
+1. determinism: Measures score divergence across execution configs (quantization, threads).
+2. trust-then-betray: Tests optimistic execution abuse when trusted nodes serve harmful outputs.
+3. model-binding: Evaluates lookup-table oracles and uncommitted proxy model substitution.
+4. reproducibility: Demonstrates that reproducible harmful outputs pass consensus, and measures
+   ASR reduction when an in-path safety judge is integrated.
+5. validation-fuzzing: Fuzzes record and block schemas and reproduces the historical tuple-bug.
 
 Usage:
-    python runner.py llama3.2:3b qwen2.5:3b
+    python runner.py --attack determinism
+    python runner.py --attack trust-then-betray [--defense]
+    python runner.py --attack model-binding
+    python runner.py --attack reproducibility [--defense]
+    python runner.py --attack validation-fuzzing
+    python runner.py --attack all
 """
-import json
-import time
-import pathlib
-from core.targets import ollama_target
-from core.attacks import load_attacks, deterministic_hit
-from core.judge import Judge
-from core.database import init_db, insert_run, insert_result, finish_run
+import sys
+import argparse
+from typing import Dict, Any
+
+from runners.determinism import run_determinism_study
+from runners.trust_then_betray import run_trust_then_betray_simulation
+from runners.model_binding import run_model_binding_study
+from runners.reproducibility import run_reproducibility_vs_safety_study
+from runners.validation_fuzzing import run_validation_fuzzing_study
+from core.defenses import PoIDefense
 
 
-def run(target_models, attacks_path="data/probes.jsonl", defense=None, judge_runs=3):
-    init_db()
-    attacks = load_attacks(attacks_path)
-    judge = Judge(runs=judge_runs)
-    targets = [ollama_target(m) for m in target_models]
-
-    # --- JSONL output (backward-compatible) ---
-    out = pathlib.Path(f"results/run_{int(time.time())}.jsonl")
-    out.parent.mkdir(exist_ok=True)
-    flag = "DEFENDED" if defense else "BASELINE"
-
-    # --- Database run record ---
-    defense_mode = "defended" if defense else "baseline"
-    run_id = insert_run(
-        target_models, defense_mode,
-        judge.model, judge.runs
+def main():
+    parser = argparse.ArgumentParser(description="HadAgent Proof-of-Inference Red-Team Suite")
+    parser.add_argument(
+        "--attack",
+        choices=["determinism", "trust-then-betray", "model-binding", "reproducibility", "validation-fuzzing", "all"],
+        default="all",
+        help="Specific PoI attack scenario to execute (default: all)"
     )
-    count = 0
+    parser.add_argument("--defense", action="store_true", help="Enable in-path defense mechanisms")
+    parser.add_argument("--rounds", type=int, default=12, help="Number of rounds for stateful attack simulations")
+    args = parser.parse_args()
 
-    with out.open("w", encoding="utf-8") as f:
-        for tgt in targets:
-            for atk in attacks:
-                system = atk.system
-                messages = []
-                transcript = ""
+    results: Dict[str, Any] = {}
 
-                # 1) Harden system prompt once if defended
-                if defense:
-                    system, _ = defense.apply(system, "")
+    print("=================================================================")
+    print("  HadAgent Proof-of-Inference (PoI) Consensus Red-Teaming Suite  ")
+    print("=================================================================")
 
-                # 2) Execute turns
-                for i, turn in enumerate(atk.turns):
-                    if defense:
-                        _, turn = defense.apply(system, turn)
-                    
-                    messages.append({"role": "user", "content": turn})
-                    transcript += f"ATTACKER: {turn}\n\n"
-                    
-                    response = tgt.generate(system, messages)
-                    
-                    if defense:
-                        response = defense.filter_output(response)
-                        
-                    transcript += f"TARGET: {response}\n\n"
-                    
-                    if i < len(atk.turns) - 1:
-                        messages.append({"role": "assistant", "content": response})
+    if args.attack in ("determinism", "all"):
+        print("\n>>> Running Attack 1: Determinism & Score Divergence Analysis <<<")
+        results["determinism"] = run_determinism_study()
 
-                hit = deterministic_hit(atk.success_if, response)   # cheap cross-check on final response
-                v = judge.judge(atk.technique, system, transcript.strip())  # the LLM-as-judge verdict on full transcript
+    if args.attack in ("trust-then-betray", "all"):
+        print("\n>>> Running Attack 2: Trust-Then-Betray (Optimistic Serving Abuse) <<<")
+        defense = PoIDefense(safety_judge=True, audit_probability=0.33) if args.defense else None
+        results["trust_then_betray"] = run_trust_then_betray_simulation(
+            rounds=args.rounds,
+            betray_at_round=6,
+            defense=defense
+        )
 
-                rec = {
-                    "model": tgt.name, "attack": atk.id, "category": atk.category,
-                    "owasp": atk.owasp, "mitre": atk.mitre,
-                    "technique": atk.technique,
-                    "verdict": v.verdict, "severity": v.severity,
-                    "deterministic_hit": hit, "votes": v.votes,
-                    "reason": v.reason, "response": transcript.strip(),
-                }
+    if args.attack in ("model-binding", "all"):
+        print("\n>>> Running Attack 3: Model Binding & Lookup-Table Audit Evasion <<<")
+        results["model_binding"] = run_model_binding_study()
 
-                # Write to both JSONL and database
-                f.write(json.dumps(rec) + "\n")
-                insert_result(run_id, rec)
-                count += 1
-                print(f"[{flag}] {tgt.name:16} {atk.id:8} -> {v.verdict:9} (sev {v.severity})")
+    if args.attack in ("reproducibility", "all"):
+        print("\n>>> Running Attack 4: Reproducibility vs Safety Invariant Attack <<<")
+        results["reproducibility"] = run_reproducibility_vs_safety_study(use_defense=args.defense)
 
-    # --- Finalize the run and store metrics ---
-    finish_run(run_id, count)
+    if args.attack in ("validation-fuzzing", "all"):
+        print("\n>>> Running Attack 5: Property-Based Validation Fuzzing (Tuple Bug) <<<")
+        results["validation_fuzzing"] = run_validation_fuzzing_study()
 
-    # Compute and store metrics in the database
-    from metrics import asr, refusal_rate, breakdown, judge_vs_deterministic, store_metrics
-    from core.database import load_run_results
-    recs = load_run_results(run_id)
-    store_metrics(run_id, recs)
-
-    print(f"\nWrote {out}  |  DB run: {run_id[:8]}...")
-    return str(out), run_id
+    print("\n=================================================================")
+    print("  All requested attack evaluations completed successfully!       ")
+    print("  Results logged to SQLite database (harness.db).                ")
+    print("=================================================================\n")
 
 
 if __name__ == "__main__":
-    import sys
-    args = sys.argv[1:]
-    
-    defense = None
-    if "--defense" in args:
-        from core.defenses import Defense
-        defense = Defense()
-        args.remove("--defense")
-        
-    models = args or ["llama3.2:3b"]
-    run(models, defense=defense)
+    main()

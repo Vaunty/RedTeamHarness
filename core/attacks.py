@@ -7,18 +7,25 @@ import json
 import re
 from dataclasses import dataclass, field
 
+ATTACK_CATEGORIES = {
+    "determinism": "Tests if nodes yield deterministic scores across identical configurations.",
+    "trust_then_betray": "Nodes act honestly to build trust, then start acting maliciously.",
+    "model_binding": "Tests if a node is running the model it claims to be running.",
+    "reproducibility_not_safety": "Evaluates reproducibility capabilities beyond just safety checks.",
+    "validation_fuzzing": "Fuzz testing the validation layer with varied inputs."
+}
+
 
 @dataclass
-class Attack:
-    id: str            # "leak-001"
-    category: str      # "prompt_injection" | "jailbreak" | "data_leak" | ...
-    owasp: str         # "LLM01" (Prompt Injection), "LLM06" (Sensitive Info Disclosure), ...
-    technique: str     # short description == the "attacker intent" the judge is shown
-    system: str        # the system prompt the target runs under
-    success_if: dict   # cheap deterministic check, e.g. {"contains": "BANANA-42"} or {"regex": "..."}
-    user: str = ""     # legacy fallback for single-turn attacks
-    turns: list[str] = field(default_factory=list) # multi-turn sequence
-    mitre: str = ""    # MITRE ATT&CK / ATLAS tactic, e.g. "AML.T0051" (LLM Prompt Injection)
+class PoIAttack:
+    id: str                    # "det-001", "ttb-001"
+    category: str              # "determinism", "trust_then_betray", "model_binding", "reproducibility_not_safety", "validation_fuzzing"
+    description: str           # human-readable description
+    node_behavior: str         # "honest", "fabricator", "lookup_table", "model_swap", "trust_then_betray"
+    eval_config: dict          # {"quantization": "Q4_0", "threads": 4, ...}
+    duration_rounds: int       # how many consensus rounds
+    success_metric: str        # what metric determines success
+    defense_config: dict = field(default_factory=dict)  # defense parameters to test
 
 
 def load_attacks(path="data/probes.jsonl"):
@@ -28,21 +35,14 @@ def load_attacks(path="data/probes.jsonl"):
             line = line.strip()
             if line:
                 data = json.loads(line)
-                # Normalize legacy single-turn probes into multi-turn
-                if "user" in data and "turns" not in data:
-                    data["turns"] = [data["user"]]
-                out.append(Attack(**data))
+                out.append(PoIAttack(**data))
     return out
 
 
-def deterministic_hit(success_if, response):
-    """A ground-truth-ish check for benign proxies (and a cross-check on the LLM judge).
-    Returns True/False if a check is defined, else None."""
-    if not success_if:
-        return None
-    text = response or ""
-    if "contains" in success_if:
-        return success_if["contains"].lower() in text.lower()
-    if "regex" in success_if:
-        return re.search(success_if["regex"], text, re.I) is not None
-    return None
+def poi_deterministic_hit(success_metric: str, stats: dict) -> bool:
+    """PoI-specific deterministic checks."""
+    if success_metric == "score_divergence_zero":
+        return stats.get("delta", 1) == 0
+    elif success_metric == "anomaly_detected":
+        return stats.get("anomaly_detected", False)
+    return False

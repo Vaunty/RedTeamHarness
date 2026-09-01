@@ -81,12 +81,67 @@ def init_db():
             UNIQUE(run_id, metric_name, breakdown_key, breakdown_value)
         );
 
+        -- PoI: Nodes
+        CREATE TABLE IF NOT EXISTS nodes (
+            node_id     TEXT PRIMARY KEY,
+            model_id    TEXT NOT NULL,
+            behavior    TEXT NOT NULL,
+            trust_state TEXT NOT NULL DEFAULT 'untrusted',
+            clean_rounds INTEGER DEFAULT 0,
+            fail_count   INTEGER DEFAULT 0
+        );
+
+        -- PoI: Records
+        CREATE TABLE IF NOT EXISTS poi_records (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id       TEXT NOT NULL REFERENCES runs(run_id),
+            node_id      TEXT NOT NULL,
+            round_num    INTEGER NOT NULL,
+            lane         TEXT NOT NULL,
+            claimed_score INTEGER,
+            verified_score INTEGER,
+            score_delta   INTEGER,
+            anomaly_detected INTEGER,
+            safety_verdict TEXT,
+            output_hash   TEXT,
+            output_text   TEXT,
+            created_at    TEXT NOT NULL
+        );
+
+        -- PoI: Score divergence
+        CREATE TABLE IF NOT EXISTS score_divergence (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id      TEXT NOT NULL,
+            config_a    TEXT NOT NULL,
+            config_b    TEXT NOT NULL,
+            task_id     TEXT NOT NULL,
+            score_a     INTEGER,
+            score_b     INTEGER,
+            delta       INTEGER
+        );
+
+        -- PoI: Trust transitions
+        CREATE TABLE IF NOT EXISTS trust_transitions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id      TEXT NOT NULL,
+            node_id     TEXT NOT NULL,
+            round_num   INTEGER NOT NULL,
+            old_state   TEXT NOT NULL,
+            new_state   TEXT NOT NULL,
+            reason      TEXT
+        );
+
         -- Indexes for fast lookups
         CREATE INDEX IF NOT EXISTS idx_results_run     ON results(run_id);
         CREATE INDEX IF NOT EXISTS idx_results_model   ON results(model);
         CREATE INDEX IF NOT EXISTS idx_results_owasp   ON results(owasp);
         CREATE INDEX IF NOT EXISTS idx_results_verdict ON results(verdict);
         CREATE INDEX IF NOT EXISTS idx_metrics_run     ON run_metrics(run_id);
+
+        CREATE INDEX IF NOT EXISTS idx_poi_records_run ON poi_records(run_id);
+        CREATE INDEX IF NOT EXISTS idx_poi_records_node ON poi_records(node_id);
+        CREATE INDEX IF NOT EXISTS idx_score_div_run ON score_divergence(run_id);
+        CREATE INDEX IF NOT EXISTS idx_trust_trans_run ON trust_transitions(run_id);
     """)
     conn.commit()
     conn.close()
@@ -243,6 +298,63 @@ def get_run_comparison(baseline_run_id, defended_run_id):
             (result["delta"] / result["baseline"]) * 100, 1
         ) if result["baseline"] > 0 else 0.0
     return result
+
+
+def insert_node(node_id, model_id, behavior, trust_state='untrusted', clean_rounds=0, fail_count=0):
+    conn = _connect()
+    conn.execute(
+        "INSERT OR REPLACE INTO nodes (node_id, model_id, behavior, trust_state, clean_rounds, fail_count) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (node_id, model_id, behavior, trust_state, clean_rounds, fail_count)
+    )
+    conn.commit()
+    conn.close()
+
+def insert_poi_record(run_id, rec=None, **kwargs):
+    conn = _connect()
+    data = dict(rec or {})
+    data.update(kwargs)
+    out_text = data.get("output_text", "")
+    conn.execute(
+        "INSERT INTO poi_records "
+        "(run_id, node_id, round_num, lane, claimed_score, verified_score, score_delta, "
+        "anomaly_detected, safety_verdict, output_hash, output_text, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (run_id, data.get("node_id", ""), data.get("round_num", 0), data.get("lane", "PROOF"),
+         data.get("claimed_score"), data.get("verified_score"), data.get("score_delta"),
+         int(data.get("anomaly_detected", 0)), data.get("safety_verdict"),
+         hash_response(out_text), out_text, datetime.now(timezone.utc).isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+def insert_score_divergence(run_id, rec=None, **kwargs):
+    conn = _connect()
+    data = dict(rec or {})
+    data.update(kwargs)
+    conn.execute(
+        "INSERT INTO score_divergence "
+        "(run_id, config_a, config_b, task_id, score_a, score_b, delta) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (run_id, data.get("config_a", ""), data.get("config_b", ""), data.get("task_id", ""),
+         data.get("score_a"), data.get("score_b"), data.get("delta"))
+    )
+    conn.commit()
+    conn.close()
+
+def insert_trust_transition(run_id, rec=None, **kwargs):
+    conn = _connect()
+    data = dict(rec or {})
+    data.update(kwargs)
+    conn.execute(
+        "INSERT INTO trust_transitions "
+        "(run_id, node_id, round_num, old_state, new_state, reason) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (run_id, data.get("node_id", ""), data.get("round_num", 0),
+         data.get("old_state", ""), data.get("new_state", ""), data.get("reason", ""))
+    )
+    conn.commit()
+    conn.close()
 
 
 if __name__ == "__main__":
