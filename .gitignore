@@ -57,3 +57,6 @@ test_results/
 scratch/
 copy_files.py
 copy_legacy.ps1
+
+# Retired code (LLM/VLM phase); kept locally, not part of the PoI repo
+legacy/
