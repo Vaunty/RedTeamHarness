@@ -2,13 +2,78 @@
 
 Matthew K. Ngoy. Mentor: Boyang Li. Kean University, Fall 2026.
 
-This is the tracking document requested at the September 4 kickoff meeting: meeting notes, the planned timeline, and a progress entry every two weeks. If a two-week period has no progress, that will be stated here explicitly.
+Tracking document requested at the September 4 kickoff meeting: meeting notes,
+the planned timeline, and progress updates. Where a period has no progress,
+that is stated plainly.
 
-## Timeline (from the proposal)
+## Meeting notes
+
+### 2026-09-04, kickoff (Zoom, group)
+
+Led by Boyang Li, with students from several universities.
+
+Four research directions were presented:
+1. Replacing Bitcoin's hash algorithm with deep learning so mining compute goes
+   to useful work such as LLM inference. (This one is nearing completion; prior
+   work on inference agents is published. I chose this direction.)
+2. Machine unlearning in LLMs and diffusion models.
+3. LLM safety and hallucination, attack and defense.
+4. Agentic AI reliability and security.
+
+Expectations Boyang set:
+- Pick a topic that grows into a coherent line of work, not a one-off.
+- Aim to submit a paper by the end of this semester or early next.
+- Bi-weekly updates are the baseline; three weeks with no update is a red flag.
+- Each student keeps a document with meeting notes, timeline, and progress, and
+  states explicitly when a two-week period had no progress.
+
+My action items: maintain this document; select a direction and send write-ups.
+
+### 2026-09-14, Slack
+
+I joined the lab Slack today and messaged Boyang that I would send my write-ups
+and direction for the blockchain research this afternoon, and asked whether he
+preferred email, direct message, or a channel. He replied "Great!".
+
+The same day, Boyang posted in the group channel that after the first-week
+meeting he had not received any updates in the second week, and that at this
+point students are expected to select a direction to work on and start from the
+given projects by reading existing papers or tech blogs.
+
+So as of today I am behind on the reporting cadence. This log and the write-up I
+am sending are my first update.
+
+## Status as of 2026-09-14
+
+Direction is selected: red-teaming HadAgent's Proof-of-Inference consensus for
+correctness and safety. Proposal written (`Red_Team_HadAgent_POI_Proposal.pdf`).
+
+Done:
+- Read the HadAgent paper, slide deck, and the prototype source and git history.
+- Confirmed the prototype is the consensus core only; the anomaly detector,
+  trust manager, and two-tier serving in the paper are not in the code.
+- Confirmed the tuple validation bug in the repo history (commits `1a8d490` to
+  `a4ec9da`) and reproduced it in `runners/validation_fuzzing.py`.
+- Noted that `pdl.py` verifies proofs against the endpoint URL in the miner's
+  own record, and that the evalset `block.py` references is missing from the repo.
+- Built harness scaffolding: `core/poi/` and five attack runners that execute;
+  unit tests pass.
+
+Not done / honest caveats:
+- No real model inference has run. Every runner uses simulated or hardcoded
+  scores, so no attack number is measured yet. README and THREAT_MODEL label
+  which figures are placeholders.
+- The validation fuzzer uses hand-written cases, not Hypothesis yet.
+- I had not sent Boyang an update before today.
+
+## Planned timeline (from the proposal)
+
+These dates are the proposal's plan. I am starting the reporting later than the
+plan assumes, so early rows overlap with catching up.
 
 | Weeks | Dates | Primary deliverable |
 |---|---|---|
-| 1-2 | Sep 1 - Sep 11 | Read HadAgent closely; threat-model extension; scaffold harness and judge |
+| 1-2 | Sep 1 - Sep 11 | Read HadAgent; threat-model extension; scaffold harness and judge |
 | 3-4 | Sep 14 - Sep 25 | Property-based test suite; reproduce the tuple bug before and after the fix |
 | 5-6 | Sep 28 - Oct 9 | Reproducibility-is-not-safety demonstration; lookup-table / model-swap audit evasion |
 | 7-8 | Oct 12 - Oct 23 | Determinism attack: score divergence across quantization, threads, library versions |
@@ -17,57 +82,11 @@ This is the tracking document requested at the September 4 kickoff meeting: meet
 | 13-14 | Nov 23 - Dec 4 | Paper draft, reproducible artifact, poster |
 | 15-16 | Dec 7 - Dec 21 | Final report and advisor sign-off |
 
-## Meeting notes
+## Next (Sep 14 - Sep 25)
 
-### 2026-09-04, kickoff (Zoom, group)
+- Convert one attack from simulated to measured: run the reproducibility runner
+  with the safety judge actually calling the API for a real before/after number.
+- Measure real score divergence: Llama-3.2-3B via llama.cpp at two quantizations.
+- Move the validation fuzzer to Hypothesis and pin it against the buggy commit.
 
-Led by Boyang Li. Attendees included students from several universities.
-
-Topics discussed:
-- Four research directions: (1) replacing Bitcoin's hash algorithm with deep learning so mining compute goes to useful work such as LLM inference; (2) machine unlearning in LLMs and diffusion models; (3) LLM safety and hallucination, both attack and defense; (4) agentic AI reliability and security.
-- I expressed interest in direction (1). Prior work in that direction (the HadAgent paper on inference agents) is published and the project is described as nearing completion.
-- Expectations: pick a topic that can grow into a coherent line of work rather than a one-off; aim to submit a paper by the end of this semester or early next; bi-weekly updates as a baseline; three weeks without an update is flagged.
-- Each student keeps a document with meeting notes, timeline, and bi-weekly progress. No progress in a two-week window must be stated explicitly.
-- Group meetings will replace most one-on-ones.
-
-Action items for me:
-- Maintain this document.
-- Select a direction and send write-ups to Boyang.
-
-### 2026-09-10 (Slack, direct message)
-
-I told Boyang I would send my write-ups and direction for the blockchain research and asked whether email, DM, or a channel is preferred. He replied "Great!". Boyang's group message the same week reminded everyone that week two should end with a chosen direction and a start on related papers or tech blogs.
-
-## Progress
-
-### 2026-09-04 to 2026-09-14 (weeks 1-2)
-
-Done:
-- Read the HadAgent paper, slide deck, and the prototype source and git history.
-- Confirmed the prototype contains the consensus core only. The anomaly detector, trust manager, two-tier serving, and heartbeat monitor from the paper are not in the code.
-- Confirmed the tuple validation bug in the repo history: introduced in `1a8d490` (2026-03-31), fixed in `a4ec9da` (2026-04-13). Reproduced it in `runners/validation_fuzzing.py`.
-- Found that `pdl.py` verifies proofs by POSTing to the endpoint URL from the miner's own record, and that the evalset file `block.py` references is not in the repo.
-- Wrote the proposal (`Red_Team_HadAgent_POI_Proposal.pdf`) with threat model, three attacks, defenses, and timeline.
-- Built `core/poi/` (records, blocks, anomaly detector with exact and tolerance modes, trust manager, two-tier server, simulated node) and five attack runners. All runners execute; unit tests pass.
-
-Not done / caveats:
-- No real model inference has run. Every runner currently uses simulated or hardcoded scores. README and THREAT_MODEL label which numbers are placeholders.
-- The validation fuzzer uses hand-written cases, not Hypothesis strategies yet.
-
-### 2026-09-14 to 2026-09-25 (weeks 3-4)
-
-Planned:
-- Measure real score divergence: Llama-3.2-3B through llama.cpp at two quantizations.
-- Run a HarmBench subset through the safety judge for a measured reproducibility result.
-- Move the fuzzer to Hypothesis and pin it against the buggy commit.
-
-Progress:
-- Wrote `docs/DESIGN_model_binding.md`: the model-substitution attack (commit an
-  aligned model, serve an unaligned one, pass audits from the aligned one) and
-  the ladder for binding a served output to the committed model (zkML, TEE
-  attestation, weight-commitment opening, fingerprinting). Plan is to build the
-  fingerprint / rotating-challenge detector and write up the cryptographic
-  binding as design, per the proposal's stretch deliverable.
-- Next concrete step: two GGUF models on separate llama.cpp ports and an
-  adversarial node that forwards audit traffic to one and real traffic to the
-  other, then measure the harmful-compliance gap on a HarmBench subset.
+Progress: (to be filled in at the next update)
