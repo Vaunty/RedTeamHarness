@@ -58,18 +58,18 @@ HadAgent is a decentralized AI serving blockchain that replaces energy-wasteful 
 
 | Threat | Description | Category | Impact | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Determinism Divergence** | Honest nodes produce different scores across quantizations (Q4 vs FP16) or thread counts, triggering false anomaly detections (up to 70% false alarm rate under exact match). | Consensus Integrity | High | Demonstrated in `runners/determinism.py` |
-| **Trust-Then-Betray** | Malicious node earns 'TRUSTED' status over 5 clean rounds, then exploits optimistic delivery to serve unsafe outputs before demotion (2 failures). | Serving Safety | Critical | Demonstrated in `runners/trust_then_betray.py` |
-| **Lookup-Table Evasion** | Miner answers static public benchmark questions (MMLU/HellaSwag) from a precomputed table, achieving 100% score with 0 compute. | Economic / Resource | High | Demonstrated in `runners/model_binding.py` |
-| **Model Substitution** | Node commits to running heavy Mistral-7B, but serves lightweight Llama-3.2-3B to consumers, pocketing ~65% compute savings. | Resource / Integrity | Medium | Demonstrated in `runners/model_binding.py` |
-| **Reproducibility != Safety** | Toxic or exploit outputs generated deterministically reproduce their score across nodes, so consensus accepts them into blocks. | Safety Invariant | Critical | Demonstrated in `runners/reproducibility.py` |
-| **Tuple Validation Bug** | Schema validator returns `(False, "reason")` tuple, which in Python evaluates as truthy, accepting invalid records into blocks. | Ledger Integrity | Critical | Fixed & Verified in `runners/validation_fuzzing.py` |
+| **Determinism Divergence** | Honest nodes produce different scores across quantizations (Q4 vs FP16) or thread counts, triggering false anomaly detections (60-72% false alarm rate under exact match with simulated jitter). | Consensus Integrity | High | Simulated in `runners/determinism.py`; real-inference measurement pending |
+| **Trust-Then-Betray** | Malicious node earns 'TRUSTED' status over 5 clean rounds, then exploits optimistic delivery to serve unsafe outputs before demotion (2 failures). | Serving Safety | Critical | Simulated in `runners/trust_then_betray.py` |
+| **Lookup-Table Evasion** | Miner answers static public benchmark questions (MMLU/HellaSwag) from a precomputed table, achieving 100% score with 0 compute. | Economic / Resource | High | Simulated on a 20-question sample in `runners/model_binding.py` |
+| **Model Substitution** | Node commits to running heavy Mistral-7B, but serves lightweight Llama-3.2-3B to consumers, pocketing an assumed ~65% compute saving (placeholder, not measured). | Resource / Integrity | Medium | Described; not yet measured |
+| **Reproducibility != Safety** | Toxic or exploit outputs generated deterministically reproduce their score across nodes, so consensus accepts them into blocks. | Safety Invariant | Critical | Illustrated with fixed outputs in `runners/reproducibility.py` |
+| **Tuple Validation Bug** | Schema validator returns `(False, "reason")` tuple, which in Python evaluates as truthy, accepting invalid records into blocks. | Ledger Integrity | Critical | Confirmed in HadAgent history (`1a8d490` to `a4ec9da`); reproduced in `runners/validation_fuzzing.py` |
 
 ---
 
 ## 6. Tested Mitigations
 
-1. **Tolerance-Based Anomaly Detection:** Replacing exact integer score equality with calibrated tolerance ($\pm 15$ points), reducing false anomaly rates from 70% to 0%.
-2. **In-Path Safety Judge Oracle (`SafetyJudgeDefense`):** Integrates an automated correctness-and-safety evaluator directly into the verification path, dropping the harmful block acceptance rate from 100% to 0%.
+1. **Tolerance-Based Anomaly Detection:** Replacing exact integer score equality with a calibrated tolerance ($\pm 15$ points under simulated jitter) removes the false anomalies; the real tolerance must come from measured divergence.
+2. **In-Path Safety Judge Oracle (`SafetyJudgeDefense`):** Integrates an automated correctness-and-safety evaluator directly into the verification path; on the fixed illustrative set it drops harmful block acceptance from 100% to 0%.
 3. **Probabilistic Pre-Delivery Gating (`RandomAuditDefense`):** Spot-checks trusted-node outputs before delivery with probability $p$, bounding adversarial delivery to expected $1/p$ rounds.
 4. **Dynamic Challenge Auditing (`RealRequestAuditDefense`):** Injects private rotating challenge queries into evaluation streams, preventing lookup-table oracles from passing audits.

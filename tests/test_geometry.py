@@ -2,7 +2,9 @@
 Verifies hand-rolled PCA against scikit-learn PCA.
 """
 import numpy as np
-from sklearn.decomposition import PCA as sklearn_PCA
+import pytest
+sklearn_decomp = pytest.importorskip("sklearn.decomposition")
+sklearn_PCA = sklearn_decomp.PCA
 from core.geometry import pca
 
 def test_pca_against_sklearn():

@@ -40,7 +40,7 @@ Rather than treating LLMs as isolated chatbots, this harness red-teams the mecha
 | **PyNaCl** | >=1.5 | Ed25519 asymmetric cryptography |
 | **msgpack** | >=1.0 | Canonical binary serialization for HadAgent records |
 | **pytest & pytest-asyncio** | Latest | Unit testing for async hub/pool & consensus |
-| **Hypothesis** | >=6.0 | Property-based fuzzing for record/block invariants |
+| **Hypothesis** | >=6.0 | Planned: property-based fuzzing for record/block invariants (current fuzzer is hand-written) |
 | **OpenAI API Key** | Optional | Required only when using GPT-4o as the Safety Judge oracle |
 
 ### Repository Structure
@@ -120,7 +120,7 @@ $env:PYTHONPATH = ".;hadagent/src;hadagent/tests"
 - **Impact:** At temperature 0, a fine-tuned or unaligned model producing harmful exploits deterministically reproduces across all nodes, passing consensus and earning block rewards (100% ASR).
 - **Mitigation Tested:** Integrating an automated Safety Judge (`SafetyJudgeDefense`) directly into the block verification pipeline, reducing ASR to 0.0%.
 
-### Attack 5: Property-Based Validation Fuzzing (`runners/validation_fuzzing.py`)
+### Attack 5: Validation Fuzzing (tuple bug) (`runners/validation_fuzzing.py`)
 - **Vulnerability:** Historical schema validation bug documented in Landy Jimenez & Mariah's test logs: `validate_records` returned `(boolean, string)` which in Python evaluated as a truthy tuple `bool((False, "bad sig")) == True`.
 - **Impact:** Corrupt records and blocks with forged signatures were accepted into consensus.
 - **Verification:** Fuzzes records with bad signatures, out-of-bounds scores, and payload tampering, proving the fixed validator rejects 100% of corrupt inputs.
