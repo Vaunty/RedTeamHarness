@@ -5,6 +5,32 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 
 ---
 
+## 2026-09-14 — Honesty pass and repo cleanup
+
+### [CHANGE] Label simulated results and verify findings against the source
+- README and THREAT_MODEL now separate findings verified against the HadAgent
+  code and history (tuple bug at commits 1a8d490..a4ec9da, miner-controlled
+  verification endpoint in pdl.py, missing serving/trust/anomaly layers) from
+  runner numbers that are still simulated placeholders.
+- Stopped calling the validation fuzzer "property-based" (it is a hand-written
+  corpus; Hypothesis is future work). Defanged the harmful-output test fixtures
+  in the reproducibility runner. Referred to the tuple bug by commit range
+  rather than naming other students.
+
+### [CHANGE] Retire LLM/VLM-phase code and trim dependencies
+- Moved `web/`, `api/`, `core/attacks.py`, `core/embed.py`, `core/geometry.py`,
+  `core/targets.py`, and `tests/test_geometry.py` to
+  `legacy/retired_llm_phase/` (untracked). None are used by the PoI pipeline.
+- Trimmed `requirements.txt` to what the PoI pipeline and tests actually import
+  (removed sentence-transformers, scikit-learn, fastapi, uvicorn).
+
+### [DECISION] Documents for research tracking (per Sep 4 kickoff)
+- Added `docs/RESEARCH_LOG.md` (meeting notes, timeline, bi-weekly progress) and
+  `docs/DESIGN_model_binding.md` (model-substitution attack and the design ladder
+  for binding served outputs to the committed model).
+
+---
+
 ## 2026-09-01 — HadAgent Proof-of-Inference Consensus Red-Teaming Pivot
 
 ### [DECISION] Research Pivot — Decentralized AI Blockchain Consensus

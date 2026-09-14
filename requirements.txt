@@ -1,14 +1,16 @@
-openai>=1.30
-python-dotenv>=1.0
-tabulate>=0.9
-fastapi>=0.110
-uvicorn[standard]>=0.27
-numpy>=1.22
-scikit-learn>=1.0
-matplotlib>=3.5
-sentence-transformers>=2.2
-hypothesis>=6.0
-pynacl>=1.5
-requests>=2.30
-msgpack>=1.0
+# Core PoI red-teaming pipeline
+pynacl>=1.5          # Ed25519 signatures
+msgpack>=1.0         # canonical record serialization (vendored prototype)
+numpy>=1.22          # determinism runner
+requests>=2.30       # simulated node endpoint calls
+openai>=1.30         # correctness-and-safety judge
+python-dotenv>=1.0   # load judge API key from .env
+tabulate>=0.9        # report tables
+matplotlib>=3.5      # baseline latency plot (vendored prototype)
+
+# Testing
+pytest>=8.0
 pytest-asyncio>=1.0
+
+# Planned (not yet used): property-based fuzzing of the validation logic
+hypothesis>=6.0

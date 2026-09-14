@@ -54,10 +54,11 @@ The active Proof-of-Inference pipeline is `runner.py`, `runners/`, `core/poi/`,
 `core/judge.py`, `core/defenses.py`, `core/database.py`, `hadagent/` (the vendored
 prototype under evaluation), `data/`, `tests/`, and `docs/`.
 
-Some directories are carried over from an earlier LLM/VLM red-teaming phase and are
-not part of the PoI work yet: the `web/` dashboard, `api/`, `core/attacks.py`,
-`core/embed.py`, `core/geometry.py`, and `core/targets.py`. They are kept for
-reference and may be removed or revived later.
+Code from an earlier LLM/VLM red-teaming phase that the PoI work does not use (the
+`web/` dashboard, `api/`, `core/attacks.py`, `core/embed.py`, `core/geometry.py`,
+`core/targets.py`, and `tests/test_geometry.py`) has been retired to
+`legacy/retired_llm_phase/`, which is not tracked in git. It is kept locally for
+reference and can be revived if needed.
 
 ```
 RedTeamHarness/
