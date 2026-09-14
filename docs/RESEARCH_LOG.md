@@ -61,4 +61,13 @@ Planned:
 - Run a HarmBench subset through the safety judge for a measured reproducibility result.
 - Move the fuzzer to Hypothesis and pin it against the buggy commit.
 
-Progress: (to be filled in)
+Progress:
+- Wrote `docs/DESIGN_model_binding.md`: the model-substitution attack (commit an
+  aligned model, serve an unaligned one, pass audits from the aligned one) and
+  the ladder for binding a served output to the committed model (zkML, TEE
+  attestation, weight-commitment opening, fingerprinting). Plan is to build the
+  fingerprint / rotating-challenge detector and write up the cryptographic
+  binding as design, per the proposal's stretch deliverable.
+- Next concrete step: two GGUF models on separate llama.cpp ports and an
+  adversarial node that forwards audit traffic to one and real traffic to the
+  other, then measure the harmful-compliance gap on a HarmBench subset.
