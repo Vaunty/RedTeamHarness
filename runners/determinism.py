@@ -31,8 +31,9 @@ def run_determinism_study(
     Args:
         eval_tasks_path: Path to evaluation questions/tasks.
         configs: List of config dicts, e.g. [{"name": "Q4_0_4t", "quant": "Q4_0", "threads": 4}, ...]
-        simulated_noise: If true, generates realistic score jitter observed in GGUF/llama.cpp
-                        heterogeneous runs to enable reproducible benchmark runs without multi-GPU rigs.
+        simulated_noise: If true, applies a hand-picked placeholder jitter to stand in for the
+                        divergence real GGUF/llama.cpp runs would show. NOT measured; a real run
+                        must replace this before any divergence number is reported.
     """
     init_db()
     if configs is None:
@@ -73,7 +74,7 @@ def run_determinism_study(
         for cfg in configs[1:]:
             cfg_name = cfg["name"]
             if simulated_noise:
-                # Quantization + thread scheduling differences introduce slight score jitter (0-2.5%)
+                # Placeholder jitter (not measured). Real quantization/thread runs must replace this.
                 jitter = int(np.random.choice([0, 0, 0, 5, 10, -5, 15, -10]))
                 score = max(0, min(1000, ref_score + jitter))
             else:

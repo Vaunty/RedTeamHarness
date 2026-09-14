@@ -70,11 +70,12 @@ def main():
         results["reproducibility"] = run_reproducibility_vs_safety_study(use_defense=args.defense)
 
     if args.attack in ("validation-fuzzing", "all"):
-        print("\n>>> Running Attack 5: Property-Based Validation Fuzzing (Tuple Bug) <<<")
+        print("\n>>> Running Attack 5: Validation Fuzzing (Tuple Bug) <<<")
         results["validation_fuzzing"] = run_validation_fuzzing_study()
 
     print("\n=================================================================")
-    print("  All requested attack evaluations completed successfully!       ")
+    print("  All requested runners completed (see README Status for what is  ")
+    print("  measured vs. simulated).                                        ")
     print("  Results logged to SQLite database (harness.db).                ")
     print("=================================================================\n")
 

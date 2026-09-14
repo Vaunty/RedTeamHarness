@@ -75,7 +75,7 @@ RedTeamHarness/
 │   └── poi_attacks.jsonl     # Attack specifications across all 5 categories
 ├── scripts/
 │   └── download_harmbench.py # Download & conversion script for held-out HarmBench data
-├── tests/                    # Unit and property-based test suite (12 tests)
+├── tests/                    # Unit test suite (12 tests)
 └── docs/
     ├── APPLICATION_GUIDE.md  # This document
     └── THREAT_MODEL.md       # PoI consensus threat model
@@ -102,8 +102,8 @@ $env:PYTHONPATH = ".;hadagent/src;hadagent/tests"
 
 ### Attack 1: Determinism & Score Divergence (`runners/determinism.py`)
 - **Vulnerability:** HadAgent's prototype anomaly detector requires exact integer equality (`claimed == verified`) on scaled scores. In reality, evaluating models across heterogeneous hardware, different GGUF quantizations (Q4_0 vs FP16), and varying thread counts introduces subtle numerical divergence.
-- **Impact:** Honest nodes are falsely flagged as anomalies (up to 70% false alarm rate), causing consensus friction.
-- **Mitigation Tested:** Calibrated tolerance ($\pm 15$ points), which restores the false anomaly rate to 0.0%.
+- **Impact:** Honest nodes are falsely flagged as anomalies. With simulated jitter the false-alarm rate is 60-72%; a real measurement is pending.
+- **Mitigation Tested:** A calibrated tolerance ($\pm 15$ points under the simulated jitter) removes the false anomalies. The real tolerance must come from measured divergence.
 
 ### Attack 2: Trust-Then-Betray (`runners/trust_then_betray.py`)
 - **Vulnerability:** To reduce latency, HadAgent uses a two-tier serving system where "TRUSTED" nodes (5 clean rounds) deliver outputs optimistically *before* verification.
@@ -112,16 +112,16 @@ $env:PYTHONPATH = ".;hadagent/src;hadagent/tests"
 
 ### Attack 3: Model-Binding & Lookup-Table Evasion (`runners/model_binding.py`)
 - **Vulnerability:** Consensus verification queries the miner's endpoint, but does not cryptographically bind the output tokens to the committed model weight hash (`artifact_hash`).
-- **Impact:** Attackers answer public audit sets (MMLU/HellaSwag) from a static precomputed lookup table (100% score with 0 compute) or substitute heavy models (Mistral-7B) with lightweight models (Llama-3.2-3B) during user serving, pocketing ~65% compute savings.
+- **Impact:** Attackers answer public audit sets (MMLU/HellaSwag) from a static precomputed lookup table (100% score with 0 compute) or substitute heavy models (Mistral-7B) with lightweight models (Llama-3.2-3B) during user serving. The ~65% compute-saving figure is a placeholder constant, not a measurement.
 - **Mitigation Tested:** Dynamic challenge auditing with private rotating evaluation queries (`RealRequestAuditDefense`).
 
 ### Attack 4: Reproducibility vs Safety Invariant (`runners/reproducibility.py`)
 - **Vulnerability:** PoI checks only whether an evaluation score or output reproduces identically across nodes, not whether the output is safe.
-- **Impact:** At temperature 0, a fine-tuned or unaligned model producing harmful exploits deterministically reproduces across all nodes, passing consensus and earning block rewards (100% ASR).
-- **Mitigation Tested:** Integrating an automated Safety Judge (`SafetyJudgeDefense`) directly into the block verification pipeline, reducing ASR to 0.0%.
+- **Impact:** At temperature 0, a fine-tuned or unaligned model producing harmful exploits deterministically reproduces across all nodes, passing consensus and earning block rewards. On the fixed illustrative set the baseline acceptance is 100% by construction.
+- **Mitigation Tested:** Adding an automated Safety Judge (`SafetyJudgeDefense`) to the block verification pipeline drops acceptance to 0% on that set. Requires a judge API key.
 
 ### Attack 5: Validation Fuzzing (tuple bug) (`runners/validation_fuzzing.py`)
-- **Vulnerability:** Historical schema validation bug documented in Landy Jimenez & Mariah's test logs: `validate_records` returned `(boolean, string)` which in Python evaluated as a truthy tuple `bool((False, "bad sig")) == True`.
+- **Vulnerability:** A validation bug in the HadAgent repo history (commits `1a8d490` to `a4ec9da`): `validate_record` returned `(boolean, string)` while the caller tested `if not validate_record(r):`, and a non-empty tuple is always truthy, so `bool((False, "bad sig")) == True`.
 - **Impact:** Corrupt records and blocks with forged signatures were accepted into consensus.
 - **Verification:** Fuzzes records with bad signatures, out-of-bounds scores, and payload tampering, proving the fixed validator rejects 100% of corrupt inputs.
 

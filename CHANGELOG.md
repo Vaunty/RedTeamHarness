@@ -22,11 +22,11 @@ Entries are reverse-chronological. Categories: [SETUP], [FEATURE], [CHANGE], [FI
 - `core/poi/node.py`: Simulated secondary node supporting honest, fabricator, lookup-table, model-swap, and trust-then-betray behaviors.
 
 ### [FEATURE] Five Attack Runners (`runners/`)
-- `runners/determinism.py`: Evaluates score divergence across quantization and thread configurations; demonstrates 60-70% false anomaly rates under exact match, and proves ±15 points eliminates false positives.
+- `runners/determinism.py`: Evaluates score divergence across quantization and thread configurations. NOTE: current scores are simulated (hand-picked jitter), so the 60-70% false-anomaly rate and the ±15 tolerance are illustrative pending real-inference measurement. See the Status section in README.
 - `runners/trust_then_betray.py`: Simulates node earning trusted status over 5 clean rounds, then serving harmful outputs optimistically; evaluates probabilistic gating against the theoretical 1/p bound.
-- `runners/model_binding.py`: Evaluates static lookup-table audit evasion (100% success on static audits) and model substitution compute savings (~65% savings by substituting Mistral-7B with Llama-3.2-3B).
-- `runners/reproducibility.py`: Demonstrates that deterministic toxic generation reproduces score and passes consensus into blocks (100% ASR); proves in-path Safety Judge reduces ASR to 0%.
-- `runners/validation_fuzzing.py`: Reproduces Landy Jimenez & Mariah's historical tuple-validation bug (100% of corrupt records accepted under legacy logic vs 0% after fix).
+- `runners/model_binding.py`: Evaluates static lookup-table audit evasion (100% on the sample audit set) and model substitution. NOTE: the ~65% compute-saving figure is a placeholder constant, not a measurement.
+- `runners/reproducibility.py`: Illustrates that deterministic harmful outputs reproduce their score and pass consensus into blocks. NOTE: the harmful outputs and scores are a fixed set, so the 100% baseline follows by construction; the defended run needs a judge API key.
+- `runners/validation_fuzzing.py`: Reproduces the historical tuple-validation bug from the HadAgent repo (commits 1a8d490..a4ec9da): all corrupt records accepted under legacy logic, none after the fix. Hand-written corpus; Hypothesis is future work.
 - `runner.py`: Top-level CLI dispatcher supporting `--attack` (`determinism`, `trust-then-betray`, `model-binding`, `reproducibility`, `validation-fuzzing`, `all`) and `--defense`.
 
 ### [FEATURE] Core Module Adaptation & Defense Layer

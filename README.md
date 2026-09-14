@@ -50,36 +50,45 @@ The harness provides reproducible, automated runners for the 5 vulnerability cat
 
 ## Architecture Overview
 
+The active Proof-of-Inference pipeline is `runner.py`, `runners/`, `core/poi/`,
+`core/judge.py`, `core/defenses.py`, `core/database.py`, `hadagent/` (the vendored
+prototype under evaluation), `data/`, `tests/`, and `docs/`.
+
+Some directories are carried over from an earlier LLM/VLM red-teaming phase and are
+not part of the PoI work yet: the `web/` dashboard, `api/`, `core/attacks.py`,
+`core/embed.py`, `core/geometry.py`, and `core/targets.py`. They are kept for
+reference and may be removed or revived later.
+
 ```
 RedTeamHarness/
-├── runner.py                 # Central CLI orchestrator for all attack suites
-├── runners/                  # Specialized attack runners
-│   ├── determinism.py        # Score divergence & hardware tolerance
-│   ├── trust_then_betray.py  # Optimistic serving exploitation & trust transitions
+├── runner.py                 # CLI orchestrator for the five attack runners
+├── runners/                  # Attack runners
+│   ├── determinism.py        # Score divergence & anomaly tolerance
+│   ├── trust_then_betray.py  # Optimistic serving abuse & trust transitions
 │   ├── model_binding.py      # Lookup tables & model substitution
-│   ├── reproducibility.py    # Reproducibility != Safety invariant tests
-│   └── validation_fuzzing.py # Property-based fuzzing & tuple bug reproduction
+│   ├── reproducibility.py    # Reproducibility-is-not-safety
+│   └── validation_fuzzing.py # Hand-written corpus fuzzing & tuple-bug reproduction
 ├── core/
-│   ├── poi/                  # Standalone HadAgent PoI consensus simulation
+│   ├── poi/                  # PoI consensus simulation (my re-implementation)
 │   │   ├── record.py         # 3-lane records, Ed25519 signing, tuple-bug switch
 │   │   ├── block.py          # Merkle-rooted per-lane blocks
-│   │   ├── trust.py          # Trust state manager (promote: 5, demote: 2)
+│   │   ├── trust.py          # Trust manager (promote after 5, demote after 2)
 │   │   ├── anomaly.py        # Exact vs tolerance score anomaly detectors
 │   │   ├── serving.py        # Two-tier optimistic execution server
 │   │   └── node.py           # Simulated secondary node with adversarial behaviors
-│   ├── judge.py              # Ported DebateCoach judge (Correctness + Safety)
-│   ├── defenses.py           # In-path Safety Judge, Random Audit, Challenge defenses
-│   ├── database.py           # SQLite persistence (runs, records, divergences, transitions)
-│   └── targets.py            # PoINode model abstraction
+│   ├── judge.py              # Correctness-and-safety judge (from DebateCoach)
+│   ├── defenses.py           # Safety-judge, random-audit, rotating-challenge defenses
+│   └── database.py           # SQLite persistence (runs, poi_records, divergence, trust)
+├── hadagent/                 # Vendored HadAgent prototype under evaluation (not mine)
 ├── data/
-│   ├── evalset/              # Public benchmark questions (MMLU, HellaSwag)
-│   └── poi_attacks.jsonl     # Attack specifications across all 5 categories
-├── scripts/
-│   └── download_harmbench.py # Download & conversion script for held-out HarmBench data
-├── tests/                    # Unit test suite
+│   ├── evalset/              # Sample public benchmark questions (MMLU/HellaSwag)
+│   └── poi_attacks.jsonl     # Attack spec catalog (reference; not loaded by runners yet)
+├── scripts/download_harmbench.py  # Fetch/convert held-out HarmBench data
+├── tests/                    # Unit tests for the PoI simulation (12)
 └── docs/
-    ├── THREAT_MODEL.md       # PoI consensus threat model
-    └── RESEARCH_LOG.md       # Meeting notes, timeline, bi-weekly progress
+    ├── THREAT_MODEL.md          # PoI consensus threat model
+    ├── DESIGN_model_binding.md  # Model-substitution attack + binding design note
+    └── RESEARCH_LOG.md          # Meeting notes, timeline, bi-weekly progress
 ```
 
 ---

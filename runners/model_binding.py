@@ -11,14 +11,10 @@ Implements:
    are randomized or drawn from private held-out challenge sets.
 """
 import json
-import time
-from typing import Dict, Any, List
+from typing import Dict, Any
 
-from core.poi.record import scale_score
-from core.poi.anomaly import AnomalyDetector, AnomalyMode
-from core.poi.node import SimulatedNode, NodeBehavior
 from core.database import (
-    init_db, insert_run, finish_run, insert_metrics, insert_poi_record
+    init_db, insert_run, finish_run, insert_metrics
 )
 from core.defenses import RealRequestAuditDefense
 
@@ -88,7 +84,7 @@ def run_model_binding_study(
 
     # Model substitution compute advantage:
     # Mistral-7B (~14GB FP16 / 4GB Q4) vs Llama-3.2-3B (~2GB Q4)
-    compute_savings_pct = 65.0  # Approx 65% compute savings by substituting 7B with 3B
+    compute_savings_pct = 65.0  # PLACEHOLDER constant, not measured; replace with a real 7B-vs-3B timing
 
     metrics = {
         "static_audit_evasion_rate": round(evasion_rate_static, 4),

@@ -1,11 +1,11 @@
 """
-runners/validation_fuzzing.py - Property-Based Validation Fuzzing & Tuple Bug Reproduction.
+runners/validation_fuzzing.py - Validation fuzzing (hand-written corpus) & tuple-bug reproduction.
 
 Reproduces the historical HadAgent tuple validation vulnerability documented in
 Landy Jimenez & Mariah's consensus test logs:
 - The legacy record schema validator returned `(boolean, string)` tuple.
 - In Python, `if validate_record(r):` evaluates any non-empty tuple (even `(False, "bad sig")`) as Truthy.
-- Result: 1 in 4 invalid test blocks were incorrectly accepted into consensus!
+- Result: under the legacy tuple logic every invalid record is accepted into consensus.
 
 This runner:
 1. Runs a corpus of invalid and fuzz-generated corrupted records through legacy vs fixed validation.

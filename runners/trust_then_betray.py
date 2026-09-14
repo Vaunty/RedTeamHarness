@@ -12,14 +12,11 @@ Simulates an adversary that operates an inference secondary node:
    - Defended (Random Audit): Probabilistic pre-delivery spot checking (gate p).
    - Defended (Safety Judge): In-path safety oracle evaluation.
 """
-import uuid
-import time
 from typing import Dict, Any, List
 
 from core.poi.trust import TrustManager, TrustState
 from core.poi.anomaly import AnomalyDetector, AnomalyMode
-from core.poi.serving import TwoTierServer, ServingResult
-from core.poi.node import SimulatedNode, NodeBehavior
+from core.poi.serving import TwoTierServer
 from core.defenses import PoIDefense
 from core.database import (
     init_db, insert_run, finish_run, insert_metrics,
